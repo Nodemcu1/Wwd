@@ -529,41 +529,80 @@ namespace Oxide.Plugins
 
             public void SpawnAllPlayers()
             {
-                foreach (var kvp in Teams)
+                // Use Side A and Side B spawns (not team-specific spawns)
+                // First team gets Side A, second team gets Side B
+                
+                var teamNames = Teams.Keys.ToList();
+                if (teamNames.Count < 2)
                 {
-                    string teamName = kvp.Key;
-                    List<ulong> players = kvp.Value;
-                    
-                    if (!Config.TeamSpawns.ContainsKey(teamName))
-                    {
-                        plugin.Puts($"Warning: No spawns configured for team {teamName} in arena!");
-                        continue;
-                    }
+                    plugin.Puts("Not enough teams to spawn players");
+                    return;
+                }
 
-                    var spawns = Config.TeamSpawns[teamName];
-                    
-                    if (spawns.Count == 0)
+                // Get Side A and Side B spawns from config
+                var sideASpawns = Config.TeamSpawns.ContainsKey("SideA") ? Config.TeamSpawns["SideA"] : new List<Vector3>();
+                var sideBSpawns = Config.TeamSpawns.ContainsKey("SideB") ? Config.TeamSpawns["SideB"] : new List<Vector3>();
+
+                // Validate spawns exist
+                if (sideASpawns.Count == 0)
+                {
+                    plugin.Puts("Warning: No Side A spawns configured!");
+                    return;
+                }
+                if (sideBSpawns.Count == 0)
+                {
+                    plugin.Puts("Warning: No Side B spawns configured!");
+                    return;
+                }
+
+                // First team → Side A, Second team → Side B
+                string teamA = teamNames[0];
+                string teamB = teamNames[1];
+
+                int sideAIndex = 0;
+                int sideBIndex = 0;
+
+                // Spawn Team A players at Side A spawns
+                if (Teams.ContainsKey(teamA))
+                {
+                    foreach (var playerId in Teams[teamA])
                     {
-                        plugin.Puts($"Warning: Team {teamName} has no spawn points configured!");
-                        continue;
-                    }
-                    
-                    for (int i = 0; i < players.Count; i++)
-                    {
-                        var player = BasePlayer.FindByID(players[i]);
-                        if (player != null)
+                        var player = BasePlayer.FindByID(playerId);
+                        if (player != null && player.IsConnected)
                         {
-                            var spawnPos = spawns[i % spawns.Count];
+                            var spawnPos = sideASpawns[sideAIndex % sideASpawns.Count];
+                            sideAIndex++;
                             
-                            // Fix spawn position if it's underground or invalid
                             Vector3 fixedSpawn = plugin.FixSpawnPosition(spawnPos);
-                            
                             player.Teleport(fixedSpawn);
                             player.SetPlayerFlag(BasePlayer.PlayerFlags.Wounded, false);
                             player.health = 100f;
+                            player.SendNetworkUpdateImmediate();
                         }
                     }
                 }
+
+                // Spawn Team B players at Side B spawns
+                if (Teams.ContainsKey(teamB))
+                {
+                    foreach (var playerId in Teams[teamB])
+                    {
+                        var player = BasePlayer.FindByID(playerId);
+                        if (player != null && player.IsConnected)
+                        {
+                            var spawnPos = sideBSpawns[sideBIndex % sideBSpawns.Count];
+                            sideBIndex++;
+                            
+                            Vector3 fixedSpawn = plugin.FixSpawnPosition(spawnPos);
+                            player.Teleport(fixedSpawn);
+                            player.SetPlayerFlag(BasePlayer.PlayerFlags.Wounded, false);
+                            player.health = 100f;
+                            player.SendNetworkUpdateImmediate();
+                        }
+                    }
+                }
+
+                plugin.Puts($"Spawned players: {teamA} → Side A, {teamB} → Side B");
             }
 
             public void HandleElimination(BasePlayer victim, BasePlayer attacker)
