@@ -138,6 +138,39 @@ The plugin generates a configuration file with the following structure:
 
 - `/arena status` - View status of all arenas (state, players, scores)
 
+### Admin Commands
+
+Requires `paintballarena.admin` permission. Grant with:
+```
+o.grant user <username> paintballarena.admin
+```
+
+- `/arenaadmin` - Display admin menu with all available commands
+
+- `/arenaadmin selectarena <1-3>` - Select which arena to configure
+  - Must be done before setting positions
+
+- `/arenaadmin setgate` - Set gate/entrance position at your current location
+  - Creates a green sphere marker
+
+- `/arenaadmin setspectator` - Set spectator viewing position at your current location
+  - Creates a yellow sphere marker
+
+- `/arenaadmin setsidea <#>` - Set Side A (Blue Team) spawn point at your current location
+  - Example: `/arenaadmin setsidea 1` sets first spawn point
+  - Creates a blue sphere marker
+
+- `/arenaadmin setsideb <#>` - Set Side B (Red Team) spawn point at your current location
+  - Example: `/arenaadmin setsideb 1` sets first spawn point
+  - Creates a red sphere marker
+
+- `/arenaadmin clearspheres` - Remove all sphere markers you've created
+
+- `/arenaadmin save` - Save current configuration to file
+  - Remember to reload plugin after saving: `o.reload PaintballArena`
+
+For detailed setup instructions, see [ADMIN_SETUP_GUIDE.md](ADMIN_SETUP_GUIDE.md).
+
 ## Installation
 
 1. Download `PaintballArena.cs`

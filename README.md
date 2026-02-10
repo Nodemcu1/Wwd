@@ -12,28 +12,51 @@ A comprehensive Oxide/UMod plugin for Rust game servers that enables multiple co
 - **Combat System**: Instance-scoped damage handling with one-hit elimination
 - **UI Isolation**: Per-arena scoreboards and kill feeds
 - **Voice Chat Isolation**: Optional voice separation between arenas
+- **Admin Setup Tools**: Visual sphere markers and in-game commands for easy arena configuration
 
 ## Quick Start
 
+### For Players
+1. Join an arena: `/arena join <1-3> <Blue/Red>`
+2. Wait for match to start
+3. Compete and have fun!
+
+### For Admins
 1. Copy `PaintballArena.cs` to your `oxide/plugins/` directory
-2. Customize `PaintballArena.json` configuration with your arena positions
-3. Reload the plugin: `o.reload PaintballArena`
-4. Players use `/arena join <1-3> <Blue/Red>` to join
+2. Grant yourself admin permission: `o.grant user <yourname> paintballarena.admin`
+3. Use `/arenaadmin` to configure arena positions with visual sphere markers
+4. See [ADMIN_SETUP_GUIDE.md](ADMIN_SETUP_GUIDE.md) for detailed setup instructions
 
 ## Documentation
 
-See [PLUGIN_README.md](PLUGIN_README.md) for comprehensive documentation including:
-- Detailed feature descriptions
-- Configuration guide
-- Command reference
-- Architecture details
-- Troubleshooting
+- **[ADMIN_SETUP_GUIDE.md](ADMIN_SETUP_GUIDE.md)** - Complete guide for setting up arenas with visual spheres
+- **[PLUGIN_README.md](PLUGIN_README.md)** - Comprehensive plugin documentation
+- **[INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)** - Installation and configuration
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture details
 
 ## Files
 
 - `PaintballArena.cs` - Main plugin file
 - `PaintballArena.json` - Example configuration
+- `ADMIN_SETUP_GUIDE.md` - Admin setup with visual spheres
 - `PLUGIN_README.md` - Complete documentation
+- `INSTALLATION_GUIDE.md` - Installation guide
+
+## Key Commands
+
+### Player Commands
+- `/arena join <1-3> <Blue/Red>` - Join an arena and team
+- `/arena leave` - Leave current arena
+- `/arena status` - View arena statuses
+
+### Admin Commands (requires `paintballarena.admin` permission)
+- `/arenaadmin` - Show admin menu
+- `/arenaadmin selectarena <1-3>` - Select arena to configure
+- `/arenaadmin setgate` - Set gate position (creates green sphere)
+- `/arenaadmin setspectator` - Set spectator position (creates yellow sphere)
+- `/arenaadmin setsidea <#>` - Set Side A spawn (creates blue sphere)
+- `/arenaadmin setsideb <#>` - Set Side B spawn (creates red sphere)
+- `/arenaadmin save` - Save configuration
 
 ## Requirements
 
