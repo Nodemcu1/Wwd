@@ -1062,7 +1062,7 @@ namespace Oxide.Plugins
             // Close button
             elements.Add(new CuiButton
             {
-                Button = { Color = "0.6 0.2 0.2 1", Command = "adminsetup close" },
+                Button = { Color = "0.6 0.2 0.2 1", Command = "adminsetup.close" },
                 RectTransform = { AnchorMin = "0.4 0.02", AnchorMax = "0.6 0.06" },
                 Text = { Text = "CLOSE", FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
@@ -1088,6 +1088,7 @@ namespace Oxide.Plugins
             else
                 adminSpawnCounter[player.userID] = 0;
 
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
             ShowAdminUI(player); // Refresh UI
             player.ChatMessage($"Selected Arena {arenaId} for setup");
         }
@@ -1100,6 +1101,7 @@ namespace Oxide.Plugins
                 return;
 
             SetGatePosition(player);
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
             ShowAdminUI(player); // Refresh UI
         }
 
@@ -1111,6 +1113,7 @@ namespace Oxide.Plugins
                 return;
 
             SetSpectatorPosition(player);
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
             ShowAdminUI(player); // Refresh UI
         }
 
@@ -1133,6 +1136,7 @@ namespace Oxide.Plugins
             {
                 int spawnIndex = arenaConfig.TeamSpawns.ContainsKey("Blue") ? arenaConfig.TeamSpawns["Blue"].Count : 0;
                 SetSideASpawn(player, spawnIndex);
+                CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
                 ShowAdminUI(player); // Refresh UI
             }
         }
@@ -1156,6 +1160,7 @@ namespace Oxide.Plugins
             {
                 int spawnIndex = arenaConfig.TeamSpawns.ContainsKey("Red") ? arenaConfig.TeamSpawns["Red"].Count : 0;
                 SetSideBSpawn(player, spawnIndex);
+                CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
                 ShowAdminUI(player); // Refresh UI
             }
         }
@@ -1168,6 +1173,7 @@ namespace Oxide.Plugins
                 return;
 
             ClearPlayerSpheres(player);
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
             ShowAdminUI(player); // Refresh UI
         }
 
@@ -1179,7 +1185,18 @@ namespace Oxide.Plugins
                 return;
 
             SaveArenaConfig(player);
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
             ShowAdminUI(player); // Refresh UI
+        }
+
+        [ConsoleCommand("adminsetup.close")]
+        private void ConsoleCloseUI(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
         }
 
         private void SetGatePosition(BasePlayer player)
