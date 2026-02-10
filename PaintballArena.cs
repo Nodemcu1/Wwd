@@ -476,39 +476,20 @@ namespace Oxide.Plugins
                 // Clear inventory
                 player.inventory.Strip();
 
-                // Give paintball gun (Rust has a dedicated paintball gun item)
-                var weapon = ItemManager.CreateByName("paintballgun", 1);
-                
-                if (weapon != null)
-                {
-                    player.inventory.GiveItem(weapon);
-                    // Paintball gun doesn't use separate ammo - it has built-in paintballs
-                }
-                else
-                {
-                    Puts($"Warning: Could not create paintballgun item for player {player.displayName}");
-                }
-            }
+                // Give paintball overalls (suit) - required
+                var suit = ItemManager.CreateByName("paintballoveralls.suit", 1);
+                if (suit != null)
+                    player.inventory.GiveItem(suit);
 
-            private int GetAmmoForMode()
-            {
-                if (Mode.Contains("Chamber"))
-                {
-                    return 1; // One in the Chamber mode
-                }
-                else if (Mode.Contains("5v5"))
-                {
-                    return 128; // TDM mode
-                }
-                else if (Mode.Contains("2v2"))
-                {
-                    return 1; // One in the Chamber mode
-                }
-                else if (Mode.Contains("1v1"))
-                {
-                    return 1; // One in the Chamber mode
-                }
-                return 64; // Default
+                // Give paintball gun - required
+                var weapon = ItemManager.CreateByName("paintballgun", 1);
+                if (weapon != null)
+                    player.inventory.GiveItem(weapon);
+
+                // Give paintball ammo - required
+                var ammo = ItemManager.CreateByName("ammo.paintball", 100);
+                if (ammo != null)
+                    player.inventory.GiveItem(ammo);
             }
 
             public void SpawnAllPlayers()
