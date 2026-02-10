@@ -479,6 +479,9 @@ namespace Oxide.Plugins
                 // Clear inventory
                 player.inventory.Strip();
 
+                // Detect chamber mode early for all loadout decisions
+                bool isChamberMode = Mode.Contains("Chamber");
+
                 // Give paintball overalls (suit) - required and AUTO-EQUIP
                 var suit = ItemManager.CreateByName("paintballoveralls.suit", 1);
                 if (suit != null)
@@ -498,15 +501,30 @@ namespace Oxide.Plugins
                 // Give paintball gun - required
                 var weapon = ItemManager.CreateByName("paintballgun", 1);
                 if (weapon != null)
+                {
+                    // For "One in the Chamber" modes, set loaded ammo to 1 shot only
+                    if (isChamberMode)
+                    {
+                        var heldEntity = weapon.GetHeldEntity() as BaseProjectile;
+                        if (heldEntity != null)
+                        {
+                            heldEntity.primaryMagazine.contents = 1; // Only 1 round loaded
+                            heldEntity.primaryMagazine.capacity = 1; // Set capacity to 1
+                        }
+                    }
                     player.inventory.GiveItem(weapon);
+                }
 
                 // Give paintball ammo - MODE DEPENDENT
-                // Chamber modes get limited ammo (5), TDM modes get plenty (100)
-                bool isChamberMode = Mode.Contains("Chamber");
-                int ammoAmount = isChamberMode ? 5 : 100;
-                var ammo = ItemManager.CreateByName("ammo.paintball", ammoAmount);
-                if (ammo != null)
-                    player.inventory.GiveItem(ammo);
+                // Chamber modes: 0 extra ammo (true "one in the chamber")
+                // TDM modes: 100 extra ammo for sustained combat
+                int ammoAmount = isChamberMode ? 0 : 100;
+                if (ammoAmount > 0)
+                {
+                    var ammo = ItemManager.CreateByName("ammo.paintball", ammoAmount);
+                    if (ammo != null)
+                        player.inventory.GiveItem(ammo);
+                }
             }
 
             public void SpawnAllPlayers()
