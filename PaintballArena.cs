@@ -1233,6 +1233,7 @@ namespace Oxide.Plugins
                 if (permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
                 {
                     player.ChatMessage("/adminsetup - Open admin setup UI");
+                    player.ChatMessage("/arena forcestart <1-3> - Force start arena for testing");
                 }
                 
                 return;
@@ -1270,6 +1271,28 @@ namespace Oxide.Plugins
 
                 case "status":
                     ShowArenaStatus(player);
+                    break;
+
+                case "forcestart":
+                    if (!permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                    {
+                        player.ChatMessage("You don't have permission to use this command");
+                        return;
+                    }
+                    
+                    if (args.Length < 2)
+                    {
+                        player.ChatMessage("Usage: /arena forcestart <1-3>");
+                        return;
+                    }
+                    
+                    if (!int.TryParse(args[1], out int forceArenaId) || forceArenaId < 1 || forceArenaId > 3)
+                    {
+                        player.ChatMessage("Invalid arena ID. Choose 1, 2, or 3");
+                        return;
+                    }
+                    
+                    ForceStartArena(player, forceArenaId);
                     break;
 
                 default:
@@ -1357,6 +1380,44 @@ namespace Oxide.Plugins
                 player.ChatMessage($"  Players: {arena.GetTotalPlayers()} (Blue: {arena.Teams["Blue"].Count}, Red: {arena.Teams["Red"].Count})");
                 player.ChatMessage($"  Score: Blue {arena.Score["Blue"]} - {arena.Score["Red"]} Red");
             }
+        }
+
+        private void ForceStartArena(BasePlayer player, int arenaId)
+        {
+            if (!arenaInstances.ContainsKey(arenaId))
+            {
+                player.ChatMessage($"Arena {arenaId} does not exist");
+                return;
+            }
+
+            var arena = arenaInstances[arenaId];
+            
+            if (arena.State == ArenaState.InProgress)
+            {
+                player.ChatMessage($"Arena {arenaId} is already in progress");
+                return;
+            }
+
+            if (arena.State == ArenaState.Countdown)
+            {
+                player.ChatMessage($"Arena {arenaId} is already counting down");
+                return;
+            }
+
+            // Force start the match regardless of player count
+            player.ChatMessage($"Force starting Arena {arenaId} for testing...");
+            
+            // Stop any existing countdown
+            if (arena.CountdownTimer != null)
+            {
+                arena.CountdownTimer.Destroy();
+                arena.CountdownTimer = null;
+            }
+            
+            // Directly start the match
+            arena.StartMatch();
+            
+            player.ChatMessage($"Arena {arenaId} force started!");
         }
 
         #endregion
