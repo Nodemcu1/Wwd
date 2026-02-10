@@ -1003,7 +1003,8 @@ namespace Oxide.Plugins
             info.SelectedTeam = team;
             info.State = PlayerState.TeamSelected;
             
-            SendReply(player, $"✓ Team Selected: <color={GetTeamColor(team)}>{team}</color>");
+            string colorHex = ColorToHex(GetTeamColor(team));
+            SendReply(player, $"✓ Team Selected: <color={colorHex}>{team}</color>");
             SendReply(player, "Now walk into an Arena Gate to join a match!");
         }
 
@@ -1064,9 +1065,10 @@ namespace Oxide.Plugins
             playerArenaMap[playerId] = arena;
             
             int queuePos = queue.GetQueuePosition(team);
+            string colorHex = ColorToHex(GetTeamColor(team));
             if (queuePos == 0)
             {
-                SendReply(player, $"✓ Joined Arena {arenaId} as <color={GetTeamColor(team)}>{team}</color> Team - ACTIVE");
+                SendReply(player, $"✓ Joined Arena {arenaId} as <color={colorHex}>{team}</color> Team - ACTIVE");
                 
                 // Teleport to spectator to wait for match start
                 player.Teleport(arena.Config.SpectatorPosition);
@@ -1076,7 +1078,7 @@ namespace Oxide.Plugins
             }
             else
             {
-                SendReply(player, $"✓ Queued for Arena {arenaId} as <color={GetTeamColor(team)}>{team}</color> Team - Position: {queuePos}");
+                SendReply(player, $"✓ Queued for Arena {arenaId} as <color={colorHex}>{team}</color> Team - Position: {queuePos}");
                 
                 // Teleport to spectator area to wait
                 player.Teleport(arena.Config.SpectatorPosition);
@@ -1439,7 +1441,7 @@ namespace Oxide.Plugins
                 RectTransform = { AnchorMin = "0.05 0.82", AnchorMax = "0.95 0.86" }
             }, ADMIN_UI_NAME);
 
-            // Arena buttons
+            // Arena buttons with mode display
             for (int i = 1; i <= 3; i++)
             {
                 float xMin = 0.05f + ((i - 1) * 0.31f);
@@ -1449,11 +1451,15 @@ namespace Oxide.Plugins
                     ? "0.2 0.6 0.2 1" 
                     : "0.3 0.3 0.3 1";
 
+                // Get arena mode for display
+                var arenaConfig = GetArenaConfig(i);
+                string arenaText = arenaConfig != null ? $"Arena {i}\n{arenaConfig.Mode}" : $"Arena {i}";
+
                 elements.Add(new CuiButton
                 {
                     Button = { Color = color, Command = $"adminsetup.selectarena {i}" },
-                    RectTransform = { AnchorMin = $"{xMin} 0.76", AnchorMax = $"{xMax} 0.81" },
-                    Text = { Text = $"Arena {i}", FontSize = 12, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                    RectTransform = { AnchorMin = $"{xMin} 0.76", AnchorMax = $"{xMax} 0.82" },
+                    Text = { Text = arenaText, FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
                 }, ADMIN_UI_NAME);
             }
 
@@ -2060,6 +2066,15 @@ namespace Oxide.Plugins
                 case "Purple": return new Color(0.6f, 0f, 0.8f, 0.5f); // Purple (team selection only)
                 default: return new Color(0.5f, 0.5f, 0.5f, 0.5f);     // Gray
             }
+        }
+
+        // Convert Unity Color to hex string for Rust chat formatting
+        private string ColorToHex(Color color)
+        {
+            int r = (int)(color.r * 255);
+            int g = (int)(color.g * 255);
+            int b = (int)(color.b * 255);
+            return $"#{r:X2}{g:X2}{b:X2}";
         }
 
         // Keep old methods for backwards compatibility but redirect to new unified method
