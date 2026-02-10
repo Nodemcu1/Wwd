@@ -59,20 +59,20 @@ namespace Oxide.Plugins
                         MinPlayersToStart = 2,
                         MaxRounds = 10,
                         RoundTimeSeconds = 300,
-                        GatePosition = new Vector3(100f, 0f, 100f),
+                        GatePosition = new Vector3(100f, 2f, 100f),
                         SpectatorPosition = new Vector3(120f, 10f, 100f),
                         TeamSpawns = new Dictionary<string, List<Vector3>>
                         {
-                            ["SideA"] = new List<Vector3> { new Vector3(150f, 0f, 150f), new Vector3(140f, 0f, 150f) },
-                            ["SideB"] = new List<Vector3> { new Vector3(60f, 0f, 50f), new Vector3(50f, 0f, 50f) }
+                            ["SideA"] = new List<Vector3> { new Vector3(150f, 2f, 150f), new Vector3(140f, 2f, 150f) },
+                            ["SideB"] = new List<Vector3> { new Vector3(60f, 2f, 50f), new Vector3(50f, 2f, 50f) }
                         },
                         TeamSelectionSpheres = new Dictionary<string, Vector3>
                         {
-                            ["Green"] = new Vector3(5f, 0f, 15f),
-                            ["Blue"] = new Vector3(10f, 0f, 10f),
-                            ["Orange"] = new Vector3(15f, 0f, 0f),
-                            ["Yellow"] = new Vector3(10f, 0f, -10f),
-                            ["Purple"] = new Vector3(5f, 0f, -15f)
+                            ["Green"] = new Vector3(5f, 2f, 15f),
+                            ["Blue"] = new Vector3(10f, 2f, 10f),
+                            ["Orange"] = new Vector3(15f, 2f, 0f),
+                            ["Yellow"] = new Vector3(10f, 2f, -10f),
+                            ["Purple"] = new Vector3(5f, 2f, -15f)
                         }
                     },
                     Arena2 = new ArenaConfig
@@ -82,20 +82,20 @@ namespace Oxide.Plugins
                         MinPlayersToStart = 2,
                         MaxRounds = 5,
                         RoundTimeSeconds = 180,
-                        GatePosition = new Vector3(200f, 0f, 200f),
+                        GatePosition = new Vector3(200f, 2f, 200f),
                         SpectatorPosition = new Vector3(220f, 10f, 200f),
                         TeamSpawns = new Dictionary<string, List<Vector3>>
                         {
-                            ["SideA"] = new List<Vector3> { new Vector3(250f, 0f, 250f), new Vector3(240f, 0f, 250f) },
-                            ["SideB"] = new List<Vector3> { new Vector3(160f, 0f, 150f), new Vector3(150f, 0f, 150f) }
+                            ["SideA"] = new List<Vector3> { new Vector3(250f, 2f, 250f), new Vector3(240f, 2f, 250f) },
+                            ["SideB"] = new List<Vector3> { new Vector3(160f, 2f, 150f), new Vector3(150f, 2f, 150f) }
                         },
                         TeamSelectionSpheres = new Dictionary<string, Vector3>
                         {
-                            ["Green"] = new Vector3(15f, 0f, 15f),
-                            ["Blue"] = new Vector3(20f, 0f, 10f),
-                            ["Orange"] = new Vector3(25f, 0f, 0f),
-                            ["Yellow"] = new Vector3(20f, 0f, -10f),
-                            ["Purple"] = new Vector3(15f, 0f, -15f)
+                            ["Green"] = new Vector3(15f, 2f, 15f),
+                            ["Blue"] = new Vector3(20f, 2f, 10f),
+                            ["Orange"] = new Vector3(25f, 2f, 0f),
+                            ["Yellow"] = new Vector3(20f, 2f, -10f),
+                            ["Purple"] = new Vector3(15f, 2f, -15f)
                         }
                     },
                     Arena3 = new ArenaConfig
@@ -105,41 +105,41 @@ namespace Oxide.Plugins
                         MinPlayersToStart = 2,
                         MaxRounds = 3,
                         RoundTimeSeconds = 120,
-                        GatePosition = new Vector3(300f, 0f, 300f),
+                        GatePosition = new Vector3(300f, 2f, 300f),
                         SpectatorPosition = new Vector3(320f, 10f, 300f),
                         TeamSpawns = new Dictionary<string, List<Vector3>>
                         {
-                            ["SideA"] = new List<Vector3> { new Vector3(350f, 0f, 350f), new Vector3(340f, 0f, 350f) },
-                            ["SideB"] = new List<Vector3> { new Vector3(260f, 0f, 250f), new Vector3(250f, 0f, 250f) }
+                            ["SideA"] = new List<Vector3> { new Vector3(350f, 2f, 350f), new Vector3(340f, 2f, 350f) },
+                            ["SideB"] = new List<Vector3> { new Vector3(260f, 2f, 250f), new Vector3(250f, 2f, 250f) }
                         },
                         TeamSelectionSpheres = new Dictionary<string, Vector3>
                         {
-                            ["Green"] = new Vector3(25f, 0f, 15f),
-                            ["Blue"] = new Vector3(30f, 0f, 10f),
-                            ["Orange"] = new Vector3(35f, 0f, 0f),
-                            ["Yellow"] = new Vector3(30f, 0f, -10f),
-                            ["Purple"] = new Vector3(25f, 0f, -15f)
+                            ["Green"] = new Vector3(25f, 2f, 15f),
+                            ["Blue"] = new Vector3(30f, 2f, 10f),
+                            ["Orange"] = new Vector3(35f, 2f, 0f),
+                            ["Yellow"] = new Vector3(30f, 2f, -10f),
+                            ["Purple"] = new Vector3(25f, 2f, -15f)
                         }
                     },
                     Global = new GlobalSettings
                     {
-                        LobbyCentral = new Vector3(0f, 0f, 0f),
+                        LobbyCentral = new Vector3(0f, 2f, 0f),
                         TeamColorSpheres = new Dictionary<string, Vector3>
                         {
-                            ["Green"] = new Vector3(-10f, 0f, 15f),
-                            ["Blue"] = new Vector3(-10f, 0f, 5f),
-                            ["Orange"] = new Vector3(-10f, 0f, -5f),
-                            ["Yellow"] = new Vector3(-10f, 0f, -15f),
-                            ["Purple"] = new Vector3(-10f, 0f, -25f)
+                            ["Green"] = new Vector3(-10f, 2f, 15f),
+                            ["Blue"] = new Vector3(-10f, 2f, 5f),
+                            ["Orange"] = new Vector3(-10f, 2f, -5f),
+                            ["Yellow"] = new Vector3(-10f, 2f, -15f),
+                            ["Purple"] = new Vector3(-10f, 2f, -25f)
                         },
                         ArenaGateSpheres = new List<Vector3>
                         {
-                            new Vector3(10f, 0f, 10f),   // Arena 1 gate
-                            new Vector3(10f, 0f, 0f),    // Arena 2 gate
-                            new Vector3(10f, 0f, -10f)   // Arena 3 gate
+                            new Vector3(10f, 2f, 10f),   // Arena 1 gate
+                            new Vector3(10f, 2f, 0f),    // Arena 2 gate
+                            new Vector3(10f, 2f, -10f)   // Arena 3 gate
                         },
-                        ReturnToLobbySphere = new Vector3(20f, 0f, 0f),  // Sphere to return to lobby from arena
-                        LeaveLobby = new Vector3(-20f, 0f, 0f),          // Position to exit the system
+                        ReturnToLobbySphere = new Vector3(20f, 2f, 0f),  // Sphere to return to lobby from arena
+                        LeaveLobby = new Vector3(-20f, 2f, 0f),          // Position to exit the system
                         EnableVoiceIsolation = true,
                         VoiceIsolationDistance = 50f,
                         MaxActiveTeamsPerArena = 2  // Only 2 teams can battle at once
@@ -476,20 +476,17 @@ namespace Oxide.Plugins
                 // Clear inventory
                 player.inventory.Strip();
 
-                // Give paintball gun (using pistol as example)
-                var weapon = ItemManager.CreateByName("pistol.semiauto", 1);
+                // Give paintball gun (Rust has a dedicated paintball gun item)
+                var weapon = ItemManager.CreateByName("paintballgun", 1);
                 
                 if (weapon != null)
                 {
                     player.inventory.GiveItem(weapon);
-
-                    // Set ammo based on mode
-                    int ammoAmount = GetAmmoForMode();
-                    var ammo = ItemManager.CreateByName("ammo.pistol", ammoAmount);
-                    if (ammo != null)
-                    {
-                        player.inventory.GiveItem(ammo);
-                    }
+                    // Paintball gun doesn't use separate ammo - it has built-in paintballs
+                }
+                else
+                {
+                    Puts($"Warning: Could not create paintballgun item for player {player.displayName}");
                 }
             }
 
@@ -522,9 +519,18 @@ namespace Oxide.Plugins
                     List<ulong> players = kvp.Value;
                     
                     if (!Config.TeamSpawns.ContainsKey(teamName))
+                    {
+                        plugin.Puts($"Warning: No spawns configured for team {teamName} in arena!");
                         continue;
+                    }
 
                     var spawns = Config.TeamSpawns[teamName];
+                    
+                    if (spawns.Count == 0)
+                    {
+                        plugin.Puts($"Warning: Team {teamName} has no spawn points configured!");
+                        continue;
+                    }
                     
                     for (int i = 0; i < players.Count; i++)
                     {
@@ -532,7 +538,11 @@ namespace Oxide.Plugins
                         if (player != null)
                         {
                             var spawnPos = spawns[i % spawns.Count];
-                            player.Teleport(spawnPos);
+                            
+                            // Fix spawn position if it's underground or invalid
+                            Vector3 fixedSpawn = plugin.FixSpawnPosition(spawnPos);
+                            
+                            player.Teleport(fixedSpawn);
                             player.SetPlayerFlag(BasePlayer.PlayerFlags.Wounded, false);
                             player.health = 100f;
                         }
@@ -2075,6 +2085,31 @@ namespace Oxide.Plugins
             int g = (int)(color.g * 255);
             int b = (int)(color.b * 255);
             return $"#{r:X2}{g:X2}{b:X2}";
+        }
+
+        // Fix spawn position to ensure players don't spawn underground
+        private Vector3 FixSpawnPosition(Vector3 position)
+        {
+            // If Y coordinate is very low (likely underground), try to find ground
+            if (position.y < 1f)
+            {
+                // Raycast down from high up to find ground
+                RaycastHit hit;
+                Vector3 rayStart = new Vector3(position.x, 500f, position.z);
+                if (Physics.Raycast(rayStart, Vector3.down, out hit, 1000f, LayerMask.GetMask("Terrain", "World", "Construction")))
+                {
+                    // Found ground, spawn 1.5m above it
+                    position = hit.point + new Vector3(0, 1.5f, 0);
+                }
+                else
+                {
+                    // Couldn't find ground, use a safe default height
+                    position.y = 10f;
+                    Puts($"Warning: Could not find ground for spawn at ({position.x}, {position.z}), using Y=10");
+                }
+            }
+            
+            return position;
         }
 
         // Keep old methods for backwards compatibility but redirect to new unified method
