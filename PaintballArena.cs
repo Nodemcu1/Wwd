@@ -886,7 +886,6 @@ namespace Oxide.Plugins
         private Dictionary<ulong, int> adminSpawnCounter = new Dictionary<ulong, int>();
 
         [ChatCommand("adminsetup")]
-        [ConsoleCommand("adminsetup")]
         private void AdminSetupCommand(BasePlayer player, string command, string[] args)
         {
             if (player == null) return;

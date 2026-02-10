@@ -84,9 +84,8 @@ private void ArenaAdminCommand(BasePlayer player, string command, string[] args)
     // Multiple switch cases for subcommands
 }
 
-// New: Simple UI toggle + console commands for buttons
+// New: Chat command to open UI, console commands for button clicks
 [ChatCommand("adminsetup")]
-[ConsoleCommand("adminsetup")]
 private void AdminSetupCommand(BasePlayer player, string command, string[] args)
 {
     ShowAdminUI(player);

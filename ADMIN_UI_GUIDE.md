@@ -2,14 +2,9 @@
 
 ## Opening the Admin Setup Panel
 
-Simply type:
+Simply type in chat:
 ```
 /adminsetup
-```
-
-Or in F1 console:
-```
-adminsetup
 ```
 
 A graphical UI panel will open with all setup controls!
