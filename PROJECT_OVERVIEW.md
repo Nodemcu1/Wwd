@@ -85,47 +85,43 @@ if (victimArena.ArenaId != attackerArena.ArenaId) {
 /arena status         # View all arena statuses
 ```
 
-### 🛠️ Admin Commands (New!)
+### 🛠️ Admin Setup UI (NEW!)
 
 ```bash
-/arenaadmin                  # Show admin menu
-/arenaadmin selectarena 1    # Select arena to configure
-/arenaadmin setgate          # Place gate marker (green sphere)
-/arenaadmin setspectator     # Place spectator marker (yellow sphere)
-/arenaadmin setsidea 1       # Place Side A spawn #1 (blue sphere)
-/arenaadmin setsideb 1       # Place Side B spawn #1 (red sphere)
-/arenaadmin save             # Save configuration
+/adminsetup    # Opens graphical admin panel
 ```
 
-**Visual Setup System**: Walk to a location and run the command to place a colored sphere marker!
+**UI-Based Setup System**: Click buttons instead of typing commands!
 
-See [ADMIN_SETUP_GUIDE.md](ADMIN_SETUP_GUIDE.md) for detailed instructions.
+See [ADMIN_UI_GUIDE.md](ADMIN_UI_GUIDE.md) for detailed UI instructions.
 
 ## 🔧 Admin Setup
 
-### Easy Setup with Visual Spheres (Recommended)
+### Easy Setup with UI Panel (Recommended)
 
 1. Grant yourself admin permission:
    ```bash
    o.grant user <yourname> paintballarena.admin
    ```
 
-2. Select arena to configure:
+2. Open the admin UI:
    ```bash
-   /arenaadmin selectarena 1
+   /adminsetup
    ```
 
-3. Walk to each position and place markers:
-   - Stand at gate → `/arenaadmin setgate` (creates green sphere)
-   - Stand at spectator spot → `/arenaadmin setspectator` (creates yellow sphere)
-   - Stand at each spawn → `/arenaadmin setsidea 1`, `/arenaadmin setsidea 2`, etc. (blue spheres)
-   - Stand at other team spawns → `/arenaadmin setsideb 1`, `/arenaadmin setsideb 2`, etc. (red spheres)
+3. Use the graphical interface:
+   - Click an **Arena button** (1, 2, or 3) to select which arena to configure
+   - Walk to gate location → Click **[Set Gate]** (creates green sphere)
+   - Walk to spectator spot → Click **[Set Spectator]** (creates yellow sphere)
+   - Walk to each spawn → Click **[Add Side A Spawn]** (creates blue spheres)
+   - Walk to other team spawns → Click **[Add Side B Spawn]** (creates red spheres)
 
 4. Save your work:
-   ```bash
-   /arenaadmin save
-   o.reload PaintballArena
-   ```
+   - Click **[Save Config]** button in UI
+   - In F1 console: `o.reload PaintballArena`
+
+5. Close UI:
+   - Click **[CLOSE]** button
 
 ### Manual Configuration (Advanced)
 

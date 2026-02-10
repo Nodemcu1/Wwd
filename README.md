@@ -24,12 +24,13 @@ A comprehensive Oxide/UMod plugin for Rust game servers that enables multiple co
 ### For Admins
 1. Copy `PaintballArena.cs` to your `oxide/plugins/` directory
 2. Grant yourself admin permission: `o.grant user <yourname> paintballarena.admin`
-3. Use `/arenaadmin` to configure arena positions with visual sphere markers
-4. See [ADMIN_SETUP_GUIDE.md](ADMIN_SETUP_GUIDE.md) for detailed setup instructions
+3. Use `/adminsetup` to open the graphical admin panel
+4. Click buttons to configure arena positions with visual sphere markers
+5. See [ADMIN_UI_GUIDE.md](ADMIN_UI_GUIDE.md) for detailed UI instructions
 
 ## Documentation
 
-- **[ADMIN_SETUP_GUIDE.md](ADMIN_SETUP_GUIDE.md)** - Complete guide for setting up arenas with visual spheres
+- **[ADMIN_UI_GUIDE.md](ADMIN_UI_GUIDE.md)** - Complete UI-based setup guide (NEW!)
 - **[PLUGIN_README.md](PLUGIN_README.md)** - Comprehensive plugin documentation
 - **[INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)** - Installation and configuration
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Technical architecture details
@@ -49,14 +50,10 @@ A comprehensive Oxide/UMod plugin for Rust game servers that enables multiple co
 - `/arena leave` - Leave current arena
 - `/arena status` - View arena statuses
 
-### Admin Commands (requires `paintballarena.admin` permission)
-- `/arenaadmin` - Show admin menu
-- `/arenaadmin selectarena <1-3>` - Select arena to configure
-- `/arenaadmin setgate` - Set gate position (creates green sphere)
-- `/arenaadmin setspectator` - Set spectator position (creates yellow sphere)
-- `/arenaadmin setsidea <#>` - Set Side A spawn (creates blue sphere)
-- `/arenaadmin setsideb <#>` - Set Side B spawn (creates red sphere)
-- `/arenaadmin save` - Save configuration
+### Admin Command (requires `paintballarena.admin` permission)
+- `/adminsetup` - Open the graphical admin setup UI panel
+
+**NEW**: No more typing commands! Open the UI and click buttons to configure arenas.
 
 ## Requirements
 
