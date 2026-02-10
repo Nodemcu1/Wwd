@@ -1254,7 +1254,7 @@ namespace Oxide.Plugins
             playerArenaMap.Remove(player.userID);
 
             player.ChatMessage("Left the arena");
-            player.Teleport(config.Global.LobbyPosition);
+            player.Teleport(config.Global.LobbyCentral);
             
             // Destroy UI
             CuiHelper.DestroyUi(player, "PaintballScoreboard");
