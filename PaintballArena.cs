@@ -231,14 +231,16 @@ namespace Oxide.Plugins
             private void StartCountdown()
             {
                 int countdown = 10;
-                CountdownTimer = plugin.timer.Repeat(1f, countdown, () =>
+                BroadcastToArena($"Match starting in {countdown}...");
+                
+                CountdownTimer = plugin.timer.Repeat(1f, countdown + 1, () =>
                 {
                     countdown--;
                     if (countdown > 0)
                     {
                         BroadcastToArena($"Match starting in {countdown}...");
                     }
-                    else
+                    else if (countdown == 0)
                     {
                         StartMatch();
                     }
@@ -611,6 +613,9 @@ namespace Oxide.Plugins
             arenaInstances[2] = new ArenaInstance(this, config.Arena2);
             arenaInstances[3] = new ArenaInstance(this, config.Arena3);
 
+            // Start resource optimization timer (runs every 30 seconds)
+            timer.Repeat(30f, 0, OptimizeArenaResources);
+
             Puts("PaintballArena plugin loaded - Multiple arena instances initialized");
         }
 
@@ -676,7 +681,7 @@ namespace Oxide.Plugins
             });
         }
 
-        private object OnPlayerVoice(BasePlayer player, Byte[] data)
+        private object OnPlayerVoice(BasePlayer player, byte[] data)
         {
             if (!config.Global.EnableVoiceIsolation)
                 return null;
