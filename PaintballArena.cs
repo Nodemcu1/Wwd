@@ -924,6 +924,13 @@ namespace Oxide.Plugins
 
         private void CheckPlayerSphereProximity()
         {
+            // Safety checks - ensure config is loaded
+            if (config == null || config.Global == null)
+                return;
+            
+            if (config.Global.TeamColorSpheres == null || config.Global.ArenaGateSpheres == null)
+                return;
+            
             foreach (var player in BasePlayer.activePlayerList)
             {
                 if (player == null || !player.IsConnected)
