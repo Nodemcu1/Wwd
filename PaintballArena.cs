@@ -138,6 +138,8 @@ namespace Oxide.Plugins
                             new Vector3(10f, 0f, 0f),    // Arena 2 gate
                             new Vector3(10f, 0f, -10f)   // Arena 3 gate
                         },
+                        ReturnToLobbySphere = new Vector3(20f, 0f, 0f),  // Sphere to return to lobby from arena
+                        LeaveLobby = new Vector3(-20f, 0f, 0f),          // Position to exit the system
                         EnableVoiceIsolation = true,
                         VoiceIsolationDistance = 50f,
                         MaxActiveTeamsPerArena = 2  // Only 2 teams can battle at once
@@ -186,6 +188,12 @@ namespace Oxide.Plugins
             
             [JsonProperty("Arena Gate Spheres")]
             public List<Vector3> ArenaGateSpheres { get; set; }
+            
+            [JsonProperty("Return To Lobby Sphere")]
+            public Vector3 ReturnToLobbySphere { get; set; }
+            
+            [JsonProperty("Leave Lobby Position")]
+            public Vector3 LeaveLobby { get; set; }
 
             [JsonProperty("Enable Voice Isolation")]
             public bool EnableVoiceIsolation { get; set; }
@@ -952,6 +960,26 @@ namespace Oxide.Plugins
                         return; // Only one action per tick
                     }
                 }
+
+                // Check return to lobby sphere proximity
+                if (config.Global.ReturnToLobbySphere != Vector3.zero)
+                {
+                    if (Vector3.Distance(player.transform.position, config.Global.ReturnToLobbySphere) < SPHERE_DETECTION_DISTANCE)
+                    {
+                        OnPlayerReturnToLobby(player);
+                        return; // Only one action per tick
+                    }
+                }
+
+                // Check leave lobby sphere proximity
+                if (config.Global.LeaveLobby != Vector3.zero)
+                {
+                    if (Vector3.Distance(player.transform.position, config.Global.LeaveLobby) < SPHERE_DETECTION_DISTANCE)
+                    {
+                        OnPlayerLeaveLobby(player);
+                        return; // Only one action per tick
+                    }
+                }
             }
         }
 
@@ -1053,6 +1081,73 @@ namespace Oxide.Plugins
                 // Teleport to spectator area to wait
                 player.Teleport(arena.Config.SpectatorPosition);
             }
+        }
+
+        private void OnPlayerReturnToLobby(BasePlayer player)
+        {
+            var playerId = player.userID;
+            
+            // Skip if player is already in lobby
+            if (playerInfo.ContainsKey(playerId) && playerInfo[playerId].State == PlayerState.InLobby)
+                return;
+            
+            // Teleport to lobby
+            player.Teleport(config.Global.LobbyCentral);
+            
+            // Update player state
+            if (!playerInfo.ContainsKey(playerId))
+            {
+                playerInfo[playerId] = new PlayerInfo(playerId);
+            }
+            
+            var info = playerInfo[playerId];
+            info.State = PlayerState.InLobby;
+            info.SelectedTeam = null;
+            info.QueuedArena = 0;
+            
+            // Remove from arena if applicable
+            if (playerArenaMap.ContainsKey(playerId))
+            {
+                var arena = playerArenaMap[playerId];
+                foreach (var team in arena.Teams)
+                {
+                    team.Value.Remove(playerId);
+                }
+                playerArenaMap.Remove(playerId);
+            }
+            
+            SendReply(player, "✓ Returned to lobby");
+        }
+
+        private void OnPlayerLeaveLobby(BasePlayer player)
+        {
+            var playerId = player.userID;
+            
+            // Skip if already outside lobby system
+            if (!playerInfo.ContainsKey(playerId) || playerInfo[playerId].State == PlayerState.None)
+                return;
+            
+            // Teleport to leave position
+            player.Teleport(config.Global.LeaveLobby);
+            
+            // Clear player state
+            if (playerInfo.ContainsKey(playerId))
+            {
+                playerInfo.Remove(playerId);
+            }
+            
+            // Remove from arena if applicable
+            if (playerArenaMap.ContainsKey(playerId))
+            {
+                var arena = playerArenaMap[playerId];
+                foreach (var team in arena.Teams)
+                {
+                    team.Value.Remove(playerId);
+                }
+                playerArenaMap.Remove(playerId);
+            }
+            
+            SendReply(player, "✓ Left the Paintball Arena system");
         }
 
         private void CheckAndStartArenaMatch(int arenaId)
@@ -1304,11 +1399,11 @@ namespace Oxide.Plugins
         {
             var elements = new CuiElementContainer();
 
-            // Main panel background
+            // Main panel background - MADE TALLER
             elements.Add(new CuiPanel
             {
                 Image = { Color = "0.1 0.1 0.1 0.95" },
-                RectTransform = { AnchorMin = "0.3 0.2", AnchorMax = "0.7 0.8" },
+                RectTransform = { AnchorMin = "0.3 0.1", AnchorMax = "0.7 0.9" },
                 CursorEnabled = true
             }, "Overlay", ADMIN_UI_NAME);
 
@@ -1316,7 +1411,7 @@ namespace Oxide.Plugins
             elements.Add(new CuiLabel
             {
                 Text = { Text = "PAINTBALL ARENA - ADMIN SETUP", FontSize = 20, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" },
-                RectTransform = { AnchorMin = "0 0.9", AnchorMax = "1 1" }
+                RectTransform = { AnchorMin = "0 0.94", AnchorMax = "1 1" }
             }, ADMIN_UI_NAME);
 
             // Current arena display
@@ -1334,14 +1429,14 @@ namespace Oxide.Plugins
             elements.Add(new CuiLabel
             {
                 Text = { Text = currentArenaText, FontSize = 14, Align = TextAnchor.MiddleCenter, Color = "0.8 0.8 0.2 1" },
-                RectTransform = { AnchorMin = "0 0.82", AnchorMax = "1 0.88" }
+                RectTransform = { AnchorMin = "0 0.88", AnchorMax = "1 0.93" }
             }, ADMIN_UI_NAME);
 
             // Arena Selection Section
             elements.Add(new CuiLabel
             {
                 Text = { Text = "SELECT ARENA:", FontSize = 12, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
-                RectTransform = { AnchorMin = "0.05 0.72", AnchorMax = "0.95 0.78" }
+                RectTransform = { AnchorMin = "0.05 0.82", AnchorMax = "0.95 0.86" }
             }, ADMIN_UI_NAME);
 
             // Arena buttons
@@ -1357,7 +1452,7 @@ namespace Oxide.Plugins
                 elements.Add(new CuiButton
                 {
                     Button = { Color = color, Command = $"adminsetup.selectarena {i}" },
-                    RectTransform = { AnchorMin = $"{xMin} 0.64", AnchorMax = $"{xMax} 0.70" },
+                    RectTransform = { AnchorMin = $"{xMin} 0.76", AnchorMax = $"{xMax} 0.81" },
                     Text = { Text = $"Arena {i}", FontSize = 12, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
                 }, ADMIN_UI_NAME);
             }
@@ -1365,44 +1460,77 @@ namespace Oxide.Plugins
             // Position Setup Section
             elements.Add(new CuiLabel
             {
-                Text = { Text = "SET POSITION (stand at location first):", FontSize = 12, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
-                RectTransform = { AnchorMin = "0.05 0.56", AnchorMax = "0.95 0.62" }
+                Text = { Text = "GLOBAL POSITIONS:", FontSize = 12, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
+                RectTransform = { AnchorMin = "0.05 0.70", AnchorMax = "0.95 0.74" }
             }, ADMIN_UI_NAME);
 
-            // Position buttons - now with 3 buttons
-            var posButtons = new[]
+            // Global position buttons (lobby, return, leave)
+            var globalButtons = new[]
             {
                 new { Label = "Set Lobby", Command = "setlobby", Color = "0.3 0.3 0.5 1" },
-                new { Label = "Set Gate", Command = "setgate", Color = "0.2 0.5 0.2 1" },
-                new { Label = "Set Spectator", Command = "setspectator", Color = "0.5 0.5 0.2 1" }
+                new { Label = "Return Sphere", Command = "setreturn", Color = "0.3 0.5 0.3 1" },
+                new { Label = "Leave Lobby", Command = "setleave", Color = "0.5 0.3 0.3 1" }
             };
 
-            for (int i = 0; i < posButtons.Length; i++)
+            for (int i = 0; i < globalButtons.Length; i++)
             {
                 float xMin = 0.05f + (i * 0.305f);
                 float xMax = xMin + 0.285f;
 
                 elements.Add(new CuiButton
                 {
-                    Button = { Color = posButtons[i].Color, Command = $"adminsetup.{posButtons[i].Command}" },
-                    RectTransform = { AnchorMin = $"{xMin} 0.48", AnchorMax = $"{xMax} 0.54" },
-                    Text = { Text = posButtons[i].Label, FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                    Button = { Color = globalButtons[i].Color, Command = $"adminsetup.{globalButtons[i].Command}" },
+                    RectTransform = { AnchorMin = $"{xMin} 0.64", AnchorMax = $"{xMax} 0.69" },
+                    Text = { Text = globalButtons[i].Label, FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
                 }, ADMIN_UI_NAME);
             }
 
-            // Spawn buttons
+            // Per-Arena Positions
+            elements.Add(new CuiLabel
+            {
+                Text = { Text = "PER-ARENA POSITIONS:", FontSize = 12, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
+                RectTransform = { AnchorMin = "0.05 0.58", AnchorMax = "0.95 0.62" }
+            }, ADMIN_UI_NAME);
+
+            // Per-arena position buttons
+            var perArenaButtons = new[]
+            {
+                new { Label = "Set Gate", Command = "setgate", Color = "0.2 0.5 0.2 1" },
+                new { Label = "Set Spectator", Command = "setspectator", Color = "0.5 0.5 0.2 1" }
+            };
+
+            for (int i = 0; i < perArenaButtons.Length; i++)
+            {
+                float xMin = 0.05f + (i * 0.455f);
+                float xMax = xMin + 0.435f;
+
+                elements.Add(new CuiButton
+                {
+                    Button = { Color = perArenaButtons[i].Color, Command = $"adminsetup.{perArenaButtons[i].Command}" },
+                    RectTransform = { AnchorMin = $"{xMin} 0.52", AnchorMax = $"{xMax} 0.57" },
+                    Text = { Text = perArenaButtons[i].Label, FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                }, ADMIN_UI_NAME);
+            }
+
+            // Spawn buttons section
+            elements.Add(new CuiLabel
+            {
+                Text = { Text = "BATTLE SPAWNS:", FontSize = 12, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
+                RectTransform = { AnchorMin = "0.05 0.46", AnchorMax = "0.95 0.50" }
+            }, ADMIN_UI_NAME);
+
             // Battle spawn buttons (requires arena selection) - SIDE A vs SIDE B
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.2 0.4 0.6 1", Command = "adminsetup.setsidea" },
-                RectTransform = { AnchorMin = "0.05 0.46", AnchorMax = "0.48 0.51" },
+                RectTransform = { AnchorMin = "0.05 0.40", AnchorMax = "0.48 0.45" },
                 Text = { Text = "Add Side A Spawn", FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.6 0.2 0.2 1", Command = "adminsetup.setsideb" },
-                RectTransform = { AnchorMin = "0.52 0.46", AnchorMax = "0.95 0.51" },
+                RectTransform = { AnchorMin = "0.52 0.40", AnchorMax = "0.95 0.45" },
                 Text = { Text = "Add Side B Spawn", FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
@@ -1410,41 +1538,41 @@ namespace Oxide.Plugins
             elements.Add(new CuiLabel
             {
                 Text = { Text = "TEAM LOBBY SPHERES:", FontSize = 10, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
-                RectTransform = { AnchorMin = "0.05 0.39", AnchorMax = "0.95 0.44" }
+                RectTransform = { AnchorMin = "0.05 0.34", AnchorMax = "0.95 0.38" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.1 0.3 0.1 1", Command = "adminsetup.setlobbygreen" },
-                RectTransform = { AnchorMin = "0.05 0.33", AnchorMax = "0.23 0.38" },
+                RectTransform = { AnchorMin = "0.05 0.29", AnchorMax = "0.23 0.33" },
                 Text = { Text = "Green Sphere", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.1 0.1 0.4 1", Command = "adminsetup.setlobbyblue" },
-                RectTransform = { AnchorMin = "0.25 0.33", AnchorMax = "0.43 0.38" },
+                RectTransform = { AnchorMin = "0.25 0.29", AnchorMax = "0.43 0.33" },
                 Text = { Text = "Blue Sphere", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.4 0.2 0.05 1", Command = "adminsetup.setlobbyorange" },
-                RectTransform = { AnchorMin = "0.45 0.33", AnchorMax = "0.63 0.38" },
+                RectTransform = { AnchorMin = "0.45 0.29", AnchorMax = "0.63 0.33" },
                 Text = { Text = "Orange Sphere", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.4 0.4 0.05 1", Command = "adminsetup.setlobbyyellow" },
-                RectTransform = { AnchorMin = "0.65 0.33", AnchorMax = "0.83 0.38" },
+                RectTransform = { AnchorMin = "0.65 0.29", AnchorMax = "0.83 0.33" },
                 Text = { Text = "Yellow Sphere", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.2 0.05 0.3 1", Command = "adminsetup.setlobbypurple" },
-                RectTransform = { AnchorMin = "0.85 0.33", AnchorMax = "0.95 0.38" },
+                RectTransform = { AnchorMin = "0.85 0.29", AnchorMax = "0.95 0.33" },
                 Text = { Text = "Purple", FontSize = 8, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
@@ -1452,27 +1580,27 @@ namespace Oxide.Plugins
             elements.Add(new CuiLabel
             {
                 Text = { Text = "ARENA GATE SPHERES (Lobby):", FontSize = 10, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
-                RectTransform = { AnchorMin = "0.05 0.26", AnchorMax = "0.95 0.31" }
+                RectTransform = { AnchorMin = "0.05 0.23", AnchorMax = "0.95 0.27" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.3 0.3 0.3 1", Command = "adminsetup.setarenagate 1" },
-                RectTransform = { AnchorMin = "0.05 0.20", AnchorMax = "0.35 0.25" },
+                RectTransform = { AnchorMin = "0.05 0.18", AnchorMax = "0.35 0.22" },
                 Text = { Text = "Arena 1 Gate", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.3 0.3 0.3 1", Command = "adminsetup.setarenagate 2" },
-                RectTransform = { AnchorMin = "0.37 0.20", AnchorMax = "0.63 0.25" },
+                RectTransform = { AnchorMin = "0.37 0.18", AnchorMax = "0.63 0.22" },
                 Text = { Text = "Arena 2 Gate", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.3 0.3 0.3 1", Command = "adminsetup.setarenagate 3" },
-                RectTransform = { AnchorMin = "0.65 0.20", AnchorMax = "0.95 0.25" },
+                RectTransform = { AnchorMin = "0.65 0.18", AnchorMax = "0.95 0.22" },
                 Text = { Text = "Arena 3 Gate", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
@@ -1480,20 +1608,20 @@ namespace Oxide.Plugins
             elements.Add(new CuiLabel
             {
                 Text = { Text = "UTILITIES:", FontSize = 12, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
-                RectTransform = { AnchorMin = "0.05 0.13", AnchorMax = "0.95 0.18" }
+                RectTransform = { AnchorMin = "0.05 0.11", AnchorMax = "0.95 0.15" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.4 0.3 0.2 1", Command = "adminsetup.clearspheres" },
-                RectTransform = { AnchorMin = "0.05 0.06", AnchorMax = "0.47 0.11" },
+                RectTransform = { AnchorMin = "0.05 0.06", AnchorMax = "0.47 0.10" },
                 Text = { Text = "Clear Spheres", FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.2 0.4 0.3 1", Command = "adminsetup.save" },
-                RectTransform = { AnchorMin = "0.53 0.06", AnchorMax = "0.95 0.11" },
+                RectTransform = { AnchorMin = "0.53 0.06", AnchorMax = "0.95 0.10" },
                 Text = { Text = "Save Config", FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
@@ -1568,6 +1696,30 @@ namespace Oxide.Plugins
             SetLobbyPosition(player);
             CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
             ShowAdminUI(player); // Refresh UI
+        }
+
+        [ConsoleCommand("adminsetup.setreturn")]
+        private void ConsoleSetReturn(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            SetReturnToLobbySphere(player);
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+            ShowAdminUI(player);
+        }
+
+        [ConsoleCommand("adminsetup.setleave")]
+        private void ConsoleSetLeave(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            SetLeaveLobbyPosition(player);
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+            ShowAdminUI(player);
         }
 
         [ConsoleCommand("adminsetup.setgate")]
@@ -1784,6 +1936,24 @@ namespace Oxide.Plugins
             player.ChatMessage($"✓ Central Lobby position set at {FormatVector3(position)}");
             
             CreateSphere(player, position, "Lobby", new Color(0.5f, 0f, 0.5f, 0.5f)); // Purple
+        }
+
+        private void SetReturnToLobbySphere(BasePlayer player)
+        {
+            Vector3 position = player.transform.position;
+            config.Global.ReturnToLobbySphere = position;
+            player.ChatMessage($"✓ Return to Lobby Sphere set at {FormatVector3(position)}");
+            
+            CreateSphere(player, position, "Return", new Color(0.3f, 0.5f, 0.3f, 0.5f)); // Green
+        }
+
+        private void SetLeaveLobbyPosition(BasePlayer player)
+        {
+            Vector3 position = player.transform.position;
+            config.Global.LeaveLobby = position;
+            player.ChatMessage($"✓ Leave Lobby position set at {FormatVector3(position)}");
+            
+            CreateSphere(player, position, "Leave", new Color(0.5f, 0.3f, 0.3f, 0.5f)); // Red
         }
 
         private void SetGatePosition(BasePlayer player)
