@@ -58,13 +58,19 @@ namespace Oxide.Plugins
                         SpectatorPosition = new Vector3(120f, 10f, 100f),
                         TeamSpawns = new Dictionary<string, List<Vector3>>
                         {
-                            ["Blue"] = new List<Vector3> { new Vector3(150f, 0f, 150f) },
-                            ["Red"] = new List<Vector3> { new Vector3(50f, 0f, 50f) }
+                            ["Green"] = new List<Vector3> { new Vector3(150f, 0f, 150f) },
+                            ["Blue"] = new List<Vector3> { new Vector3(140f, 0f, 150f) },
+                            ["Orange"] = new List<Vector3> { new Vector3(60f, 0f, 50f) },
+                            ["Yellow"] = new List<Vector3> { new Vector3(50f, 0f, 50f) },
+                            ["Purple"] = new List<Vector3> { new Vector3(100f, 0f, 100f) }
                         },
                         TeamSelectionSpheres = new Dictionary<string, Vector3>
                         {
+                            ["Green"] = new Vector3(5f, 0f, 15f),
                             ["Blue"] = new Vector3(10f, 0f, 10f),
-                            ["Red"] = new Vector3(10f, 0f, -10f)
+                            ["Orange"] = new Vector3(15f, 0f, 0f),
+                            ["Yellow"] = new Vector3(10f, 0f, -10f),
+                            ["Purple"] = new Vector3(5f, 0f, -15f)
                         }
                     },
                     Arena2 = new ArenaConfig
@@ -78,13 +84,19 @@ namespace Oxide.Plugins
                         SpectatorPosition = new Vector3(220f, 10f, 200f),
                         TeamSpawns = new Dictionary<string, List<Vector3>>
                         {
-                            ["Blue"] = new List<Vector3> { new Vector3(250f, 0f, 250f) },
-                            ["Red"] = new List<Vector3> { new Vector3(150f, 0f, 150f) }
+                            ["Green"] = new List<Vector3> { new Vector3(250f, 0f, 250f) },
+                            ["Blue"] = new List<Vector3> { new Vector3(240f, 0f, 250f) },
+                            ["Orange"] = new List<Vector3> { new Vector3(160f, 0f, 150f) },
+                            ["Yellow"] = new List<Vector3> { new Vector3(150f, 0f, 150f) },
+                            ["Purple"] = new List<Vector3> { new Vector3(200f, 0f, 200f) }
                         },
                         TeamSelectionSpheres = new Dictionary<string, Vector3>
                         {
+                            ["Green"] = new Vector3(15f, 0f, 15f),
                             ["Blue"] = new Vector3(20f, 0f, 10f),
-                            ["Red"] = new Vector3(20f, 0f, -10f)
+                            ["Orange"] = new Vector3(25f, 0f, 0f),
+                            ["Yellow"] = new Vector3(20f, 0f, -10f),
+                            ["Purple"] = new Vector3(15f, 0f, -15f)
                         }
                     },
                     Arena3 = new ArenaConfig
@@ -98,13 +110,19 @@ namespace Oxide.Plugins
                         SpectatorPosition = new Vector3(320f, 10f, 300f),
                         TeamSpawns = new Dictionary<string, List<Vector3>>
                         {
-                            ["Blue"] = new List<Vector3> { new Vector3(350f, 0f, 350f) },
-                            ["Red"] = new List<Vector3> { new Vector3(250f, 0f, 250f) }
+                            ["Green"] = new List<Vector3> { new Vector3(350f, 0f, 350f) },
+                            ["Blue"] = new List<Vector3> { new Vector3(340f, 0f, 350f) },
+                            ["Orange"] = new List<Vector3> { new Vector3(260f, 0f, 250f) },
+                            ["Yellow"] = new List<Vector3> { new Vector3(250f, 0f, 250f) },
+                            ["Purple"] = new List<Vector3> { new Vector3(300f, 0f, 300f) }
                         },
                         TeamSelectionSpheres = new Dictionary<string, Vector3>
                         {
+                            ["Green"] = new Vector3(25f, 0f, 15f),
                             ["Blue"] = new Vector3(30f, 0f, 10f),
-                            ["Red"] = new Vector3(30f, 0f, -10f)
+                            ["Orange"] = new Vector3(35f, 0f, 0f),
+                            ["Yellow"] = new Vector3(30f, 0f, -10f),
+                            ["Purple"] = new Vector3(25f, 0f, -15f)
                         }
                     },
                     Global = new GlobalSettings
@@ -764,7 +782,7 @@ namespace Oxide.Plugins
             if (args.Length == 0)
             {
                 player.ChatMessage("Available commands:");
-                player.ChatMessage("/arena join <1-3> <team> - Join an arena and team");
+                player.ChatMessage("/arena join <1-3> <Green/Blue/Orange/Yellow/Purple> - Join an arena and team");
                 player.ChatMessage("/arena leave - Leave current arena");
                 player.ChatMessage("/arena status - View status of all arenas");
                 
@@ -781,7 +799,7 @@ namespace Oxide.Plugins
                 case "join":
                     if (args.Length < 3)
                     {
-                        player.ChatMessage("Usage: /arena join <1-3> <Blue/Red>");
+                        player.ChatMessage("Usage: /arena join <1-3> <Green/Blue/Orange/Yellow/Purple>");
                         return;
                     }
                     
@@ -792,9 +810,10 @@ namespace Oxide.Plugins
                     }
 
                     string team = args[2];
-                    if (team != "Blue" && team != "Red")
+                    string[] validTeams = { "Green", "Blue", "Orange", "Yellow", "Purple" };
+                    if (!validTeams.Contains(team))
                     {
-                        player.ChatMessage("Invalid team. Choose Blue or Red");
+                        player.ChatMessage("Invalid team. Choose: Green, Blue, Orange, Yellow, or Purple");
                         return;
                     }
 
@@ -1016,33 +1035,82 @@ namespace Oxide.Plugins
             }
 
             // Spawn buttons
+            // Battle spawn buttons (requires arena selection)
             elements.Add(new CuiButton
             {
-                Button = { Color = "0.2 0.2 0.5 1", Command = "adminsetup.setsidea" },
-                RectTransform = { AnchorMin = "0.05 0.40", AnchorMax = "0.47 0.46" },
-                Text = { Text = "Add Side A Spawn", FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                Button = { Color = "0.2 0.4 0.2 1", Command = "adminsetup.setteamgreen" },
+                RectTransform = { AnchorMin = "0.05 0.46", AnchorMax = "0.30 0.51" },
+                Text = { Text = "Add Green Spawn", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
-                Button = { Color = "0.5 0.2 0.2 1", Command = "adminsetup.setsideb" },
-                RectTransform = { AnchorMin = "0.53 0.40", AnchorMax = "0.95 0.46" },
-                Text = { Text = "Add Side B Spawn", FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
-            }, ADMIN_UI_NAME);
-
-            // Team selection sphere buttons (lobby)
-            elements.Add(new CuiButton
-            {
-                Button = { Color = "0.1 0.1 0.4 1", Command = "adminsetup.setteamblue" },
-                RectTransform = { AnchorMin = "0.05 0.33", AnchorMax = "0.47 0.38" },
-                Text = { Text = "Set Blue Team Sphere", FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                Button = { Color = "0.2 0.2 0.5 1", Command = "adminsetup.setteamblue" },
+                RectTransform = { AnchorMin = "0.32 0.46", AnchorMax = "0.48 0.51" },
+                Text = { Text = "Add Blue Spawn", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
-                Button = { Color = "0.4 0.1 0.1 1", Command = "adminsetup.setteamred" },
-                RectTransform = { AnchorMin = "0.53 0.33", AnchorMax = "0.95 0.38" },
-                Text = { Text = "Set Red Team Sphere", FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                Button = { Color = "0.5 0.3 0.1 1", Command = "adminsetup.setteamorange" },
+                RectTransform = { AnchorMin = "0.52 0.46", AnchorMax = "0.68 0.51" },
+                Text = { Text = "Add Orange Spawn", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.5 0.5 0.1 1", Command = "adminsetup.setteamyellow" },
+                RectTransform = { AnchorMin = "0.70 0.46", AnchorMax = "0.86 0.51" },
+                Text = { Text = "Add Yellow Spawn", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.3 0.1 0.4 1", Command = "adminsetup.setteampurple" },
+                RectTransform = { AnchorMin = "0.88 0.46", AnchorMax = "0.95 0.51" },
+                Text = { Text = "Purple", FontSize = 8, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
+            // Team selection sphere buttons (lobby) - for selecting which team to join
+            elements.Add(new CuiLabel
+            {
+                Text = { Text = "TEAM LOBBY SPHERES:", FontSize = 10, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
+                RectTransform = { AnchorMin = "0.05 0.39", AnchorMax = "0.95 0.44" }
+            }, ADMIN_UI_NAME);
+
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.1 0.3 0.1 1", Command = "adminsetup.setlobbygreen" },
+                RectTransform = { AnchorMin = "0.05 0.33", AnchorMax = "0.23 0.38" },
+                Text = { Text = "Green Sphere", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.1 0.1 0.4 1", Command = "adminsetup.setlobbyblue" },
+                RectTransform = { AnchorMin = "0.25 0.33", AnchorMax = "0.43 0.38" },
+                Text = { Text = "Blue Sphere", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.4 0.2 0.05 1", Command = "adminsetup.setlobbyorange" },
+                RectTransform = { AnchorMin = "0.45 0.33", AnchorMax = "0.63 0.38" },
+                Text = { Text = "Orange Sphere", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.4 0.4 0.05 1", Command = "adminsetup.setlobbyyellow" },
+                RectTransform = { AnchorMin = "0.65 0.33", AnchorMax = "0.83 0.38" },
+                Text = { Text = "Yellow Sphere", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.2 0.05 0.3 1", Command = "adminsetup.setlobbypurple" },
+                RectTransform = { AnchorMin = "0.85 0.33", AnchorMax = "0.95 0.38" },
+                Text = { Text = "Purple", FontSize = 8, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             // Utility Section
@@ -1074,9 +1142,12 @@ namespace Oxide.Plugins
                 var arenaConfig = GetArenaConfig(arenaId);
                 if (arenaConfig != null)
                 {
-                    int sideACount = arenaConfig.TeamSpawns.ContainsKey("Blue") ? arenaConfig.TeamSpawns["Blue"].Count : 0;
-                    int sideBCount = arenaConfig.TeamSpawns.ContainsKey("Red") ? arenaConfig.TeamSpawns["Red"].Count : 0;
-                    infoText = $"Arena {arenaId}: Side A Spawns: {sideACount} | Side B Spawns: {sideBCount}";
+                    int greenCount = arenaConfig.TeamSpawns.ContainsKey("Green") ? arenaConfig.TeamSpawns["Green"].Count : 0;
+                    int blueCount = arenaConfig.TeamSpawns.ContainsKey("Blue") ? arenaConfig.TeamSpawns["Blue"].Count : 0;
+                    int orangeCount = arenaConfig.TeamSpawns.ContainsKey("Orange") ? arenaConfig.TeamSpawns["Orange"].Count : 0;
+                    int yellowCount = arenaConfig.TeamSpawns.ContainsKey("Yellow") ? arenaConfig.TeamSpawns["Yellow"].Count : 0;
+                    int purpleCount = arenaConfig.TeamSpawns.ContainsKey("Purple") ? arenaConfig.TeamSpawns["Purple"].Count : 0;
+                    infoText = $"Arena {arenaId} | 🟢:{greenCount} 🔵:{blueCount} 🟠:{orangeCount} 🟡:{yellowCount} 🟣:{purpleCount}";
                 }
             }
 
@@ -1089,7 +1160,7 @@ namespace Oxide.Plugins
             // Sphere colors legend
             elements.Add(new CuiLabel
             {
-                Text = { Text = "🟣 Lobby  |  🟢 Gate  |  🟡 Spectator  |  🔵 Side A  |  🔴 Side B", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "0.5 0.5 0.5 1" },
+                Text = { Text = "Lobby🟣 | Gate🟢 | Spec🟡 | Teams: 🟢Green 🔵Blue 🟠Orange 🟡Yellow 🟣Purple", FontSize = 8, Align = TextAnchor.MiddleCenter, Color = "0.5 0.5 0.5 1" },
                 RectTransform = { AnchorMin = "0.05 0.06", AnchorMax = "0.95 0.10" }
             }, ADMIN_UI_NAME);
 
@@ -1163,32 +1234,94 @@ namespace Oxide.Plugins
             ShowAdminUI(player); // Refresh UI
         }
 
-        [ConsoleCommand("adminsetup.setteamblue")]
-        private void ConsoleSetTeamBlue(ConsoleSystem.Arg arg)
+        // Team selection sphere setters (for lobby)
+        [ConsoleCommand("adminsetup.setlobbygreen")]
+        private void ConsoleSetLobbyGreen(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            SetTeamSelectionSphere(player, "Green");
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+            ShowAdminUI(player);
+        }
+
+        [ConsoleCommand("adminsetup.setlobbyblue")]
+        private void ConsoleSetLobbyBlue(ConsoleSystem.Arg arg)
         {
             var player = arg.Player();
             if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
                 return;
 
             SetTeamSelectionSphere(player, "Blue");
-            CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
-            ShowAdminUI(player); // Refresh UI
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+            ShowAdminUI(player);
         }
 
-        [ConsoleCommand("adminsetup.setteamred")]
-        private void ConsoleSetTeamRed(ConsoleSystem.Arg arg)
+        [ConsoleCommand("adminsetup.setlobbyorange")]
+        private void ConsoleSetLobbyOrange(ConsoleSystem.Arg arg)
         {
             var player = arg.Player();
             if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
                 return;
 
-            SetTeamSelectionSphere(player, "Red");
-            CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
-            ShowAdminUI(player); // Refresh UI
+            SetTeamSelectionSphere(player, "Orange");
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+            ShowAdminUI(player);
         }
 
-        [ConsoleCommand("adminsetup.setsidea")]
-        private void ConsoleSetSideA(ConsoleSystem.Arg arg)
+        [ConsoleCommand("adminsetup.setlobbyyellow")]
+        private void ConsoleSetLobbyYellow(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            SetTeamSelectionSphere(player, "Yellow");
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+            ShowAdminUI(player);
+        }
+
+        [ConsoleCommand("adminsetup.setlobbypurple")]
+        private void ConsoleSetLobbyPurple(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            SetTeamSelectionSphere(player, "Purple");
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+            ShowAdminUI(player);
+        }
+
+        // Team spawn setters (for battle)
+        [ConsoleCommand("adminsetup.setteamgreen")]
+        private void ConsoleSetTeamGreen(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            if (!adminCurrentArena.ContainsKey(player.userID))
+            {
+                player.ChatMessage("Select an arena first");
+                return;
+            }
+
+            int arenaId = adminCurrentArena[player.userID];
+            var arenaConfig = GetArenaConfig(arenaId);
+            if (arenaConfig != null)
+            {
+                int spawnIndex = arenaConfig.TeamSpawns.ContainsKey("Green") ? arenaConfig.TeamSpawns["Green"].Count : 0;
+                SetTeamSpawn(player, "Green", spawnIndex);
+                CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+                ShowAdminUI(player);
+            }
+        }
+
+        [ConsoleCommand("adminsetup.setteamblue")]
+        private void ConsoleSetTeamBlue(ConsoleSystem.Arg arg)
         {
             var player = arg.Player();
             if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
@@ -1205,18 +1338,83 @@ namespace Oxide.Plugins
             if (arenaConfig != null)
             {
                 int spawnIndex = arenaConfig.TeamSpawns.ContainsKey("Blue") ? arenaConfig.TeamSpawns["Blue"].Count : 0;
-                SetSideASpawn(player, spawnIndex);
-                CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
-                ShowAdminUI(player); // Refresh UI
+                SetTeamSpawn(player, "Blue", spawnIndex);
+                CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+                ShowAdminUI(player);
             }
         }
 
-        [ConsoleCommand("adminsetup.setsideb")]
-        private void ConsoleSetSideB(ConsoleSystem.Arg arg)
+        [ConsoleCommand("adminsetup.setteamorange")]
+        private void ConsoleSetTeamOrange(ConsoleSystem.Arg arg)
         {
             var player = arg.Player();
             if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
                 return;
+
+            if (!adminCurrentArena.ContainsKey(player.userID))
+            {
+                player.ChatMessage("Select an arena first");
+                return;
+            }
+
+            int arenaId = adminCurrentArena[player.userID];
+            var arenaConfig = GetArenaConfig(arenaId);
+            if (arenaConfig != null)
+            {
+                int spawnIndex = arenaConfig.TeamSpawns.ContainsKey("Orange") ? arenaConfig.TeamSpawns["Orange"].Count : 0;
+                SetTeamSpawn(player, "Orange", spawnIndex);
+                CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+                ShowAdminUI(player);
+            }
+        }
+
+        [ConsoleCommand("adminsetup.setteamyellow")]
+        private void ConsoleSetTeamYellow(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            if (!adminCurrentArena.ContainsKey(player.userID))
+            {
+                player.ChatMessage("Select an arena first");
+                return;
+            }
+
+            int arenaId = adminCurrentArena[player.userID];
+            var arenaConfig = GetArenaConfig(arenaId);
+            if (arenaConfig != null)
+            {
+                int spawnIndex = arenaConfig.TeamSpawns.ContainsKey("Yellow") ? arenaConfig.TeamSpawns["Yellow"].Count : 0;
+                SetTeamSpawn(player, "Yellow", spawnIndex);
+                CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+                ShowAdminUI(player);
+            }
+        }
+
+        [ConsoleCommand("adminsetup.setteampurple")]
+        private void ConsoleSetTeamPurple(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            if (!adminCurrentArena.ContainsKey(player.userID))
+            {
+                player.ChatMessage("Select an arena first");
+                return;
+            }
+
+            int arenaId = adminCurrentArena[player.userID];
+            var arenaConfig = GetArenaConfig(arenaId);
+            if (arenaConfig != null)
+            {
+                int spawnIndex = arenaConfig.TeamSpawns.ContainsKey("Purple") ? arenaConfig.TeamSpawns["Purple"].Count : 0;
+                SetTeamSpawn(player, "Purple", spawnIndex);
+                CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+                ShowAdminUI(player);
+            }
+        }
 
             if (!adminCurrentArena.ContainsKey(player.userID))
             {
@@ -1342,12 +1540,12 @@ namespace Oxide.Plugins
                 arenaConfig.TeamSelectionSpheres[team] = position;
                 player.ChatMessage($"✓ {team} Team selection sphere set for Arena {arenaId}");
                 
-                Color sphereColor = team == "Blue" ? new Color(0f, 0.3f, 1f, 0.5f) : new Color(1f, 0.3f, 0f, 0.5f);
+                Color sphereColor = GetTeamColor(team);
                 CreateSphere(player, position, $"{team} Team Sphere", sphereColor);
             }
         }
 
-        private void SetSideASpawn(BasePlayer player, int spawnIndex)
+        private void SetTeamSpawn(BasePlayer player, string team, int spawnIndex)
         {
             if (!adminCurrentArena.ContainsKey(player.userID))
             {
@@ -1361,52 +1559,46 @@ namespace Oxide.Plugins
             var arenaConfig = GetArenaConfig(arenaId);
             if (arenaConfig != null)
             {
-                if (!arenaConfig.TeamSpawns.ContainsKey("Blue"))
+                if (!arenaConfig.TeamSpawns.ContainsKey(team))
                 {
-                    arenaConfig.TeamSpawns["Blue"] = new List<Vector3>();
+                    arenaConfig.TeamSpawns[team] = new List<Vector3>();
                 }
 
-                while (arenaConfig.TeamSpawns["Blue"].Count <= spawnIndex)
+                while (arenaConfig.TeamSpawns[team].Count <= spawnIndex)
                 {
-                    arenaConfig.TeamSpawns["Blue"].Add(Vector3.zero);
+                    arenaConfig.TeamSpawns[team].Add(Vector3.zero);
                 }
 
-                arenaConfig.TeamSpawns["Blue"][spawnIndex] = position;
-                player.ChatMessage($"✓ Side A spawn #{spawnIndex + 1} set for Arena {arenaId}");
+                arenaConfig.TeamSpawns[team][spawnIndex] = position;
+                player.ChatMessage($"✓ {team} spawn #{spawnIndex + 1} set for Arena {arenaId}");
                 
-                CreateSphere(player, position, $"Side A #{spawnIndex + 1}", new Color(0f, 0f, 1f, 0.5f));
+                Color sphereColor = GetTeamColor(team);
+                CreateSphere(player, position, $"{team} #{spawnIndex + 1}", sphereColor);
             }
+        }
+
+        private Color GetTeamColor(string team)
+        {
+            switch (team)
+            {
+                case "Green": return new Color(0f, 0.8f, 0f, 0.5f);    // Green
+                case "Blue": return new Color(0f, 0.3f, 1f, 0.5f);     // Blue
+                case "Orange": return new Color(1f, 0.5f, 0f, 0.5f);   // Orange
+                case "Yellow": return new Color(1f, 1f, 0f, 0.5f);     // Yellow
+                case "Purple": return new Color(0.6f, 0f, 0.8f, 0.5f); // Purple
+                default: return new Color(0.5f, 0.5f, 0.5f, 0.5f);     // Gray
+            }
+        }
+
+        // Keep old methods for backwards compatibility but redirect to new unified method
+        private void SetSideASpawn(BasePlayer player, int spawnIndex)
+        {
+            SetTeamSpawn(player, "Blue", spawnIndex);
         }
 
         private void SetSideBSpawn(BasePlayer player, int spawnIndex)
         {
-            if (!adminCurrentArena.ContainsKey(player.userID))
-            {
-                player.ChatMessage("Select an arena first");
-                return;
-            }
-
-            int arenaId = adminCurrentArena[player.userID];
-            Vector3 position = player.transform.position;
-
-            var arenaConfig = GetArenaConfig(arenaId);
-            if (arenaConfig != null)
-            {
-                if (!arenaConfig.TeamSpawns.ContainsKey("Red"))
-                {
-                    arenaConfig.TeamSpawns["Red"] = new List<Vector3>();
-                }
-
-                while (arenaConfig.TeamSpawns["Red"].Count <= spawnIndex)
-                {
-                    arenaConfig.TeamSpawns["Red"].Add(Vector3.zero);
-                }
-
-                arenaConfig.TeamSpawns["Red"][spawnIndex] = position;
-                player.ChatMessage($"✓ Side B spawn #{spawnIndex + 1} set for Arena {arenaId}");
-                
-                CreateSphere(player, position, $"Side B #{spawnIndex + 1}", new Color(1f, 0f, 0f, 0.5f));
-            }
+            SetTeamSpawn(player, "Red", spawnIndex);
         }
 
         private ArenaConfig GetArenaConfig(int arenaId)
