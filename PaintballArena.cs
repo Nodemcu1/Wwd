@@ -19,6 +19,12 @@ namespace Oxide.Plugins
         private Dictionary<int, ArenaInstance> arenaInstances = new Dictionary<int, ArenaInstance>();
         private PluginConfig config;
         
+        // Admin setup spheres
+        private Dictionary<ulong, List<SphereEntity>> adminSpheres = new Dictionary<ulong, List<SphereEntity>>();
+        private Dictionary<ulong, int> adminCurrentArena = new Dictionary<ulong, int>();
+        
+        private const string ADMIN_PERMISSION = "paintballarena.admin";
+        
         #endregion
 
         #region Configuration
@@ -608,6 +614,9 @@ namespace Oxide.Plugins
 
         private void Init()
         {
+            // Register permissions
+            permission.RegisterPermission(ADMIN_PERMISSION, this);
+            
             // Initialize arena instances
             arenaInstances[1] = new ArenaInstance(this, config.Arena1);
             arenaInstances[2] = new ArenaInstance(this, config.Arena2);
@@ -632,6 +641,19 @@ namespace Oxide.Plugins
             {
                 CuiHelper.DestroyUi(player, "PaintballScoreboard");
             }
+            
+            // Cleanup all admin spheres
+            foreach (var sphereList in adminSpheres.Values)
+            {
+                foreach (var sphere in sphereList)
+                {
+                    if (sphere != null && !sphere.IsDestroyed)
+                    {
+                        sphere.Kill();
+                    }
+                }
+            }
+            adminSpheres.Clear();
         }
 
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
@@ -726,6 +748,12 @@ namespace Oxide.Plugins
                 player.ChatMessage("/arena join <1-3> <team> - Join an arena and team");
                 player.ChatMessage("/arena leave - Leave current arena");
                 player.ChatMessage("/arena status - View status of all arenas");
+                
+                if (permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                {
+                    player.ChatMessage("/arenaadmin - Admin setup menu");
+                }
+                
                 return;
             }
 
@@ -847,6 +875,302 @@ namespace Oxide.Plugins
                 player.ChatMessage($"  Players: {arena.GetTotalPlayers()} (Blue: {arena.Teams["Blue"].Count}, Red: {arena.Teams["Red"].Count})");
                 player.ChatMessage($"  Score: Blue {arena.Score["Blue"]} - {arena.Score["Red"]} Red");
             }
+        }
+
+        #endregion
+
+        #region Admin Commands
+
+        [ChatCommand("arenaadmin")]
+        private void ArenaAdminCommand(BasePlayer player, string command, string[] args)
+        {
+            if (!permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+            {
+                player.ChatMessage("You don't have permission to use this command.");
+                return;
+            }
+
+            if (args.Length == 0)
+            {
+                ShowAdminMenu(player);
+                return;
+            }
+
+            switch (args[0].ToLower())
+            {
+                case "selectarena":
+                    if (args.Length < 2 || !int.TryParse(args[1], out int arenaId) || arenaId < 1 || arenaId > 3)
+                    {
+                        player.ChatMessage("Usage: /arenaadmin selectarena <1-3>");
+                        return;
+                    }
+                    adminCurrentArena[player.userID] = arenaId;
+                    player.ChatMessage($"Selected Arena {arenaId} for setup");
+                    break;
+
+                case "setgate":
+                    SetGatePosition(player);
+                    break;
+
+                case "setspectator":
+                    SetSpectatorPosition(player);
+                    break;
+
+                case "setsidea":
+                    if (args.Length < 2 || !int.TryParse(args[1], out int spawnIndexA))
+                    {
+                        player.ChatMessage("Usage: /arenaadmin setsidea <spawn_number>");
+                        player.ChatMessage("Example: /arenaadmin setsidea 1 (for first spawn point)");
+                        return;
+                    }
+                    SetSideASpawn(player, spawnIndexA - 1); // Convert to 0-based index
+                    break;
+
+                case "setsideb":
+                    if (args.Length < 2 || !int.TryParse(args[1], out int spawnIndexB))
+                    {
+                        player.ChatMessage("Usage: /arenaadmin setsideb <spawn_number>");
+                        player.ChatMessage("Example: /arenaadmin setsideb 1 (for first spawn point)");
+                        return;
+                    }
+                    SetSideBSpawn(player, spawnIndexB - 1); // Convert to 0-based index
+                    break;
+
+                case "clearspheres":
+                    ClearPlayerSpheres(player);
+                    break;
+
+                case "save":
+                    SaveArenaConfig(player);
+                    break;
+
+                case "menu":
+                    ShowAdminMenu(player);
+                    break;
+
+                default:
+                    ShowAdminMenu(player);
+                    break;
+            }
+        }
+
+        private void ShowAdminMenu(BasePlayer player)
+        {
+            player.ChatMessage("=== PaintballArena Admin Menu ===");
+            player.ChatMessage("/arenaadmin selectarena <1-3> - Select arena to configure");
+            
+            if (adminCurrentArena.ContainsKey(player.userID))
+            {
+                player.ChatMessage($"Currently editing: Arena {adminCurrentArena[player.userID]}");
+            }
+            else
+            {
+                player.ChatMessage("No arena selected. Use 'selectarena' first.");
+            }
+            
+            player.ChatMessage("");
+            player.ChatMessage("Setup Commands (stand at desired location):");
+            player.ChatMessage("/arenaadmin setgate - Set gate/entrance position");
+            player.ChatMessage("/arenaadmin setspectator - Set spectator viewing position");
+            player.ChatMessage("/arenaadmin setsidea <#> - Set Side A spawn point");
+            player.ChatMessage("/arenaadmin setsideb <#> - Set Side B spawn point");
+            player.ChatMessage("");
+            player.ChatMessage("Utility Commands:");
+            player.ChatMessage("/arenaadmin clearspheres - Clear all your sphere markers");
+            player.ChatMessage("/arenaadmin save - Save current setup to config");
+            player.ChatMessage("");
+            player.ChatMessage("Visual spheres show where positions are set.");
+        }
+
+        private void SetGatePosition(BasePlayer player)
+        {
+            if (!adminCurrentArena.ContainsKey(player.userID))
+            {
+                player.ChatMessage("Select an arena first: /arenaadmin selectarena <1-3>");
+                return;
+            }
+
+            int arenaId = adminCurrentArena[player.userID];
+            Vector3 position = player.transform.position;
+
+            // Update the config for this arena
+            var arenaConfig = GetArenaConfig(arenaId);
+            if (arenaConfig != null)
+            {
+                arenaConfig.GatePosition = position;
+                player.ChatMessage($"Gate position set for Arena {arenaId} at {FormatVector3(position)}");
+                
+                // Create visual sphere
+                CreateSphere(player, position, "Gate", new Color(0f, 1f, 0f, 0.5f)); // Green
+            }
+        }
+
+        private void SetSpectatorPosition(BasePlayer player)
+        {
+            if (!adminCurrentArena.ContainsKey(player.userID))
+            {
+                player.ChatMessage("Select an arena first: /arenaadmin selectarena <1-3>");
+                return;
+            }
+
+            int arenaId = adminCurrentArena[player.userID];
+            Vector3 position = player.transform.position;
+
+            var arenaConfig = GetArenaConfig(arenaId);
+            if (arenaConfig != null)
+            {
+                arenaConfig.SpectatorPosition = position;
+                player.ChatMessage($"Spectator position set for Arena {arenaId} at {FormatVector3(position)}");
+                
+                // Create visual sphere
+                CreateSphere(player, position, "Spectator", new Color(1f, 1f, 0f, 0.5f)); // Yellow
+            }
+        }
+
+        private void SetSideASpawn(BasePlayer player, int spawnIndex)
+        {
+            if (!adminCurrentArena.ContainsKey(player.userID))
+            {
+                player.ChatMessage("Select an arena first: /arenaadmin selectarena <1-3>");
+                return;
+            }
+
+            int arenaId = adminCurrentArena[player.userID];
+            Vector3 position = player.transform.position;
+
+            var arenaConfig = GetArenaConfig(arenaId);
+            if (arenaConfig != null)
+            {
+                // Ensure Blue team list exists and is large enough
+                if (!arenaConfig.TeamSpawns.ContainsKey("Blue"))
+                {
+                    arenaConfig.TeamSpawns["Blue"] = new List<Vector3>();
+                }
+
+                // Expand list if needed
+                while (arenaConfig.TeamSpawns["Blue"].Count <= spawnIndex)
+                {
+                    arenaConfig.TeamSpawns["Blue"].Add(Vector3.zero);
+                }
+
+                arenaConfig.TeamSpawns["Blue"][spawnIndex] = position;
+                player.ChatMessage($"Side A (Blue) spawn #{spawnIndex + 1} set for Arena {arenaId} at {FormatVector3(position)}");
+                
+                // Create visual sphere
+                CreateSphere(player, position, $"Side A #{spawnIndex + 1}", new Color(0f, 0f, 1f, 0.5f)); // Blue
+            }
+        }
+
+        private void SetSideBSpawn(BasePlayer player, int spawnIndex)
+        {
+            if (!adminCurrentArena.ContainsKey(player.userID))
+            {
+                player.ChatMessage("Select an arena first: /arenaadmin selectarena <1-3>");
+                return;
+            }
+
+            int arenaId = adminCurrentArena[player.userID];
+            Vector3 position = player.transform.position;
+
+            var arenaConfig = GetArenaConfig(arenaId);
+            if (arenaConfig != null)
+            {
+                // Ensure Red team list exists and is large enough
+                if (!arenaConfig.TeamSpawns.ContainsKey("Red"))
+                {
+                    arenaConfig.TeamSpawns["Red"] = new List<Vector3>();
+                }
+
+                // Expand list if needed
+                while (arenaConfig.TeamSpawns["Red"].Count <= spawnIndex)
+                {
+                    arenaConfig.TeamSpawns["Red"].Add(Vector3.zero);
+                }
+
+                arenaConfig.TeamSpawns["Red"][spawnIndex] = position;
+                player.ChatMessage($"Side B (Red) spawn #{spawnIndex + 1} set for Arena {arenaId} at {FormatVector3(position)}");
+                
+                // Create visual sphere
+                CreateSphere(player, position, $"Side B #{spawnIndex + 1}", new Color(1f, 0f, 0f, 0.5f)); // Red
+            }
+        }
+
+        private ArenaConfig GetArenaConfig(int arenaId)
+        {
+            switch (arenaId)
+            {
+                case 1: return config.Arena1;
+                case 2: return config.Arena2;
+                case 3: return config.Arena3;
+                default: return null;
+            }
+        }
+
+        private void CreateSphere(BasePlayer player, Vector3 position, string label, Color color)
+        {
+            var sphere = GameManager.server.CreateEntity("assets/prefabs/visualization/sphere.prefab", position) as SphereEntity;
+            if (sphere != null)
+            {
+                sphere.currentRadius = 1f;
+                sphere.lerpRadius = 1f;
+                sphere.Spawn();
+
+                // Track sphere for cleanup
+                if (!adminSpheres.ContainsKey(player.userID))
+                {
+                    adminSpheres[player.userID] = new List<SphereEntity>();
+                }
+                adminSpheres[player.userID].Add(sphere);
+
+                player.ChatMessage($"Sphere created: {label}");
+            }
+        }
+
+        private void ClearPlayerSpheres(BasePlayer player)
+        {
+            if (adminSpheres.ContainsKey(player.userID))
+            {
+                foreach (var sphere in adminSpheres[player.userID])
+                {
+                    if (sphere != null && !sphere.IsDestroyed)
+                    {
+                        sphere.Kill();
+                    }
+                }
+                adminSpheres[player.userID].Clear();
+                player.ChatMessage("All sphere markers cleared.");
+            }
+            else
+            {
+                player.ChatMessage("No sphere markers to clear.");
+            }
+        }
+
+        private void SaveArenaConfig(BasePlayer player)
+        {
+            SaveConfig();
+            player.ChatMessage("Arena configuration saved!");
+            player.ChatMessage("Use 'o.reload PaintballArena' to apply changes.");
+            
+            // Show summary
+            if (adminCurrentArena.ContainsKey(player.userID))
+            {
+                int arenaId = adminCurrentArena[player.userID];
+                var arenaConfig = GetArenaConfig(arenaId);
+                if (arenaConfig != null)
+                {
+                    player.ChatMessage($"Arena {arenaId} Configuration:");
+                    player.ChatMessage($"  Gate: {FormatVector3(arenaConfig.GatePosition)}");
+                    player.ChatMessage($"  Spectator: {FormatVector3(arenaConfig.SpectatorPosition)}");
+                    player.ChatMessage($"  Side A Spawns: {arenaConfig.TeamSpawns["Blue"].Count}");
+                    player.ChatMessage($"  Side B Spawns: {arenaConfig.TeamSpawns["Red"].Count}");
+                }
+            }
+        }
+
+        private string FormatVector3(Vector3 v)
+        {
+            return $"({v.x:F1}, {v.y:F1}, {v.z:F1})";
         }
 
         #endregion
