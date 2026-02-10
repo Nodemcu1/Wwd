@@ -1841,23 +1841,6 @@ namespace Oxide.Plugins
             }
         }
 
-            if (!adminCurrentArena.ContainsKey(player.userID))
-            {
-                player.ChatMessage("Select an arena first");
-                return;
-            }
-
-            int arenaId = adminCurrentArena[player.userID];
-            var arenaConfig = GetArenaConfig(arenaId);
-            if (arenaConfig != null)
-            {
-                int spawnIndex = arenaConfig.TeamSpawns.ContainsKey("Red") ? arenaConfig.TeamSpawns["Red"].Count : 0;
-                SetSideBSpawn(player, spawnIndex);
-                CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
-                ShowAdminUI(player); // Refresh UI
-            }
-        }
-
         [ConsoleCommand("adminsetup.clearspheres")]
         private void ConsoleClearSpheres(ConsoleSystem.Arg arg)
         {
