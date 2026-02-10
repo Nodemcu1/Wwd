@@ -1,0 +1,160 @@
+{
+  "Arena 1 Settings": {
+    "Arena ID": 1,
+    "Game Mode": "5v5_TDM",
+    "Minimum Players To Start": 2,
+    "Max Rounds": 10,
+    "Round Time (Seconds)": 300,
+    "Gate Position": {
+      "x": 100.0,
+      "y": 0.0,
+      "z": 100.0
+    },
+    "Spectator Position": {
+      "x": 120.0,
+      "y": 10.0,
+      "z": 100.0
+    },
+    "Team Spawns": {
+      "Blue": [
+        {
+          "x": 150.0,
+          "y": 0.0,
+          "z": 150.0
+        },
+        {
+          "x": 155.0,
+          "y": 0.0,
+          "z": 150.0
+        },
+        {
+          "x": 160.0,
+          "y": 0.0,
+          "z": 150.0
+        },
+        {
+          "x": 165.0,
+          "y": 0.0,
+          "z": 150.0
+        },
+        {
+          "x": 170.0,
+          "y": 0.0,
+          "z": 150.0
+        }
+      ],
+      "Red": [
+        {
+          "x": 50.0,
+          "y": 0.0,
+          "z": 50.0
+        },
+        {
+          "x": 55.0,
+          "y": 0.0,
+          "z": 50.0
+        },
+        {
+          "x": 60.0,
+          "y": 0.0,
+          "z": 50.0
+        },
+        {
+          "x": 65.0,
+          "y": 0.0,
+          "z": 50.0
+        },
+        {
+          "x": 70.0,
+          "y": 0.0,
+          "z": 50.0
+        }
+      ]
+    }
+  },
+  "Arena 2 Settings": {
+    "Arena ID": 2,
+    "Game Mode": "2v2_Chamber",
+    "Minimum Players To Start": 2,
+    "Max Rounds": 5,
+    "Round Time (Seconds)": 180,
+    "Gate Position": {
+      "x": 200.0,
+      "y": 0.0,
+      "z": 200.0
+    },
+    "Spectator Position": {
+      "x": 220.0,
+      "y": 10.0,
+      "z": 200.0
+    },
+    "Team Spawns": {
+      "Blue": [
+        {
+          "x": 250.0,
+          "y": 0.0,
+          "z": 250.0
+        },
+        {
+          "x": 255.0,
+          "y": 0.0,
+          "z": 250.0
+        }
+      ],
+      "Red": [
+        {
+          "x": 150.0,
+          "y": 0.0,
+          "z": 150.0
+        },
+        {
+          "x": 155.0,
+          "y": 0.0,
+          "z": 150.0
+        }
+      ]
+    }
+  },
+  "Arena 3 Settings": {
+    "Arena ID": 3,
+    "Game Mode": "1v1_Chamber",
+    "Minimum Players To Start": 2,
+    "Max Rounds": 3,
+    "Round Time (Seconds)": 120,
+    "Gate Position": {
+      "x": 300.0,
+      "y": 0.0,
+      "z": 300.0
+    },
+    "Spectator Position": {
+      "x": 320.0,
+      "y": 10.0,
+      "z": 300.0
+    },
+    "Team Spawns": {
+      "Blue": [
+        {
+          "x": 350.0,
+          "y": 0.0,
+          "z": 350.0
+        }
+      ],
+      "Red": [
+        {
+          "x": 250.0,
+          "y": 0.0,
+          "z": 250.0
+        }
+      ]
+    }
+  },
+  "Global Settings": {
+    "Lobby Position": {
+      "x": 0.0,
+      "y": 0.0,
+      "z": 0.0
+    },
+    "Enable Voice Isolation": true,
+    "Voice Isolation Distance": 50.0
+  }
+}
