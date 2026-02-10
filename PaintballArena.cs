@@ -1473,24 +1473,52 @@ namespace Oxide.Plugins
                 Text = { Text = "Purple", FontSize = 8, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
+            // Arena Gate Sphere Buttons
+            elements.Add(new CuiLabel
+            {
+                Text = { Text = "ARENA GATE SPHERES (Lobby):", FontSize = 10, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
+                RectTransform = { AnchorMin = "0.05 0.26", AnchorMax = "0.95 0.31" }
+            }, ADMIN_UI_NAME);
+
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.3 0.3 0.3 1", Command = "adminsetup.setarenagate 1" },
+                RectTransform = { AnchorMin = "0.05 0.20", AnchorMax = "0.35 0.25" },
+                Text = { Text = "Arena 1 Gate", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.3 0.3 0.3 1", Command = "adminsetup.setarenagate 2" },
+                RectTransform = { AnchorMin = "0.37 0.20", AnchorMax = "0.63 0.25" },
+                Text = { Text = "Arena 2 Gate", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.3 0.3 0.3 1", Command = "adminsetup.setarenagate 3" },
+                RectTransform = { AnchorMin = "0.65 0.20", AnchorMax = "0.95 0.25" },
+                Text = { Text = "Arena 3 Gate", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
             // Utility Section
             elements.Add(new CuiLabel
             {
                 Text = { Text = "UTILITIES:", FontSize = 12, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
-                RectTransform = { AnchorMin = "0.05 0.25", AnchorMax = "0.95 0.31" }
+                RectTransform = { AnchorMin = "0.05 0.13", AnchorMax = "0.95 0.18" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.4 0.3 0.2 1", Command = "adminsetup.clearspheres" },
-                RectTransform = { AnchorMin = "0.05 0.17", AnchorMax = "0.47 0.23" },
+                RectTransform = { AnchorMin = "0.05 0.06", AnchorMax = "0.47 0.11" },
                 Text = { Text = "Clear Spheres", FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.2 0.4 0.3 1", Command = "adminsetup.save" },
-                RectTransform = { AnchorMin = "0.53 0.17", AnchorMax = "0.95 0.23" },
+                RectTransform = { AnchorMin = "0.53 0.06", AnchorMax = "0.95 0.11" },
                 Text = { Text = "Save Config", FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
@@ -1651,6 +1679,45 @@ namespace Oxide.Plugins
                 return;
 
             SetTeamSelectionSphere(player, "Purple");
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+            ShowAdminUI(player);
+        }
+
+        // Arena Gate Sphere setter
+        [ConsoleCommand("adminsetup.setarenagate")]
+        private void ConsoleSetArenaGate(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            if (arg.Args.Length < 1 || !int.TryParse(arg.Args[0], out int arenaId) || arenaId < 1 || arenaId > 3)
+            {
+                player.ChatMessage("Usage: adminsetup.setarenagate <1-3>");
+                return;
+            }
+
+            Vector3 position = player.transform.position;
+            
+            // Ensure list is initialized
+            if (config.Global.ArenaGateSpheres == null)
+            {
+                config.Global.ArenaGateSpheres = new List<Vector3> { Vector3.zero, Vector3.zero, Vector3.zero };
+            }
+            
+            // Ensure list has enough elements
+            while (config.Global.ArenaGateSpheres.Count < 3)
+            {
+                config.Global.ArenaGateSpheres.Add(Vector3.zero);
+            }
+            
+            config.Global.ArenaGateSpheres[arenaId - 1] = position;
+            
+            // Create sphere marker (dark grey for arena gates)
+            CreateAdminSphere(player, position, "0.3 0.3 0.3 0.5");
+            
+            player.ChatMessage($"✓ Arena {arenaId} Gate sphere set at your position");
+            
             CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
             ShowAdminUI(player);
         }
@@ -1830,8 +1897,8 @@ namespace Oxide.Plugins
         private void SetLobbyPosition(BasePlayer player)
         {
             Vector3 position = player.transform.position;
-            config.Global.LobbyPosition = position;
-            player.ChatMessage($"✓ Lobby position set globally at {FormatVector3(position)}");
+            config.Global.LobbyCentral = position;
+            player.ChatMessage($"✓ Central Lobby position set at {FormatVector3(position)}");
             
             CreateSphere(player, position, "Lobby", new Color(0.5f, 0f, 0.5f, 0.5f)); // Purple
         }
@@ -1880,29 +1947,19 @@ namespace Oxide.Plugins
 
         private void SetTeamSelectionSphere(BasePlayer player, string team)
         {
-            if (!adminCurrentArena.ContainsKey(player.userID))
-            {
-                player.ChatMessage("Select an arena first");
-                return;
-            }
-
-            int arenaId = adminCurrentArena[player.userID];
             Vector3 position = player.transform.position;
 
-            var arenaConfig = GetArenaConfig(arenaId);
-            if (arenaConfig != null)
+            // Store in global config (single lobby for all arenas)
+            if (config.Global.TeamColorSpheres == null)
             {
-                if (arenaConfig.TeamSelectionSpheres == null)
-                {
-                    arenaConfig.TeamSelectionSpheres = new Dictionary<string, Vector3>();
-                }
-
-                arenaConfig.TeamSelectionSpheres[team] = position;
-                player.ChatMessage($"✓ {team} Team selection sphere set for Arena {arenaId}");
-                
-                Color sphereColor = GetTeamColor(team);
-                CreateSphere(player, position, $"{team} Team Sphere", sphereColor);
+                config.Global.TeamColorSpheres = new Dictionary<string, Vector3>();
             }
+
+            config.Global.TeamColorSpheres[team] = position;
+            player.ChatMessage($"✓ {team} Team selection sphere set in central lobby");
+            
+            Color sphereColor = GetTeamColor(team);
+            CreateSphere(player, position, $"{team} Team Sphere", sphereColor);
         }
 
         private void SetTeamSpawn(BasePlayer player, string team, int spawnIndex)
