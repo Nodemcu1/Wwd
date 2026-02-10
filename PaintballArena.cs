@@ -422,13 +422,16 @@ namespace Oxide.Plugins
                 CurrentRound = 1;
                 IsActive = true;
                 
-                BroadcastToArena("Match started!");
+                // Broadcast to players
+                BroadcastToArena("🎮 Match starting! Get ready!");
+                
+                // Spawn all players at their team positions
+                SpawnAllPlayers();
                 
                 // Distribute loadouts based on mode
                 DistributeLoadouts();
                 
-                // Spawn all players
-                SpawnAllPlayers();
+                BroadcastToArena($"⚔️ Round {CurrentRound} - Fight!");
                 
                 // Start round timer
                 StartRoundTimer();
@@ -476,18 +479,32 @@ namespace Oxide.Plugins
                 // Clear inventory
                 player.inventory.Strip();
 
-                // Give paintball overalls (suit) - required
+                // Give paintball overalls (suit) - required and AUTO-EQUIP
                 var suit = ItemManager.CreateByName("paintballoveralls.suit", 1);
                 if (suit != null)
-                    player.inventory.GiveItem(suit);
+                {
+                    // Move to wear slot so it's equipped
+                    if (!player.inventory.containerWear.IsFull())
+                    {
+                        player.inventory.containerWear.Insert(suit);
+                    }
+                    else
+                    {
+                        player.inventory.GiveItem(suit);
+                    }
+                    player.SendNetworkUpdateImmediate();  // Show equipped suit
+                }
 
                 // Give paintball gun - required
                 var weapon = ItemManager.CreateByName("paintballgun", 1);
                 if (weapon != null)
                     player.inventory.GiveItem(weapon);
 
-                // Give paintball ammo - required
-                var ammo = ItemManager.CreateByName("ammo.paintball", 100);
+                // Give paintball ammo - MODE DEPENDENT
+                // Chamber modes get limited ammo (5), TDM modes get plenty (100)
+                bool isChamberMode = Mode.Contains("Chamber");
+                int ammoAmount = isChamberMode ? 5 : 100;
+                var ammo = ItemManager.CreateByName("ammo.paintball", ammoAmount);
                 if (ammo != null)
                     player.inventory.GiveItem(ammo);
             }
