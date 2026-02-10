@@ -19,11 +19,16 @@ namespace Oxide.Plugins
         private Dictionary<int, ArenaInstance> arenaInstances = new Dictionary<int, ArenaInstance>();
         private PluginConfig config;
         
+        // Queue system - NEW
+        private Dictionary<ulong, PlayerInfo> playerInfo = new Dictionary<ulong, PlayerInfo>();
+        private Dictionary<int, ArenaQueue> arenaQueues = new Dictionary<int, ArenaQueue>();
+        
         // Admin setup spheres
         private Dictionary<ulong, List<SphereEntity>> adminSpheres = new Dictionary<ulong, List<SphereEntity>>();
         private Dictionary<ulong, int> adminCurrentArena = new Dictionary<ulong, int>();
         
         private const string ADMIN_PERMISSION = "paintballarena.admin";
+        private const float SPHERE_DETECTION_DISTANCE = 2f; // Distance to detect sphere collision
         
         #endregion
 
@@ -127,9 +132,24 @@ namespace Oxide.Plugins
                     },
                     Global = new GlobalSettings
                     {
-                        LobbyPosition = new Vector3(0f, 0f, 0f),
+                        LobbyCentral = new Vector3(0f, 0f, 0f),
+                        TeamColorSpheres = new Dictionary<string, Vector3>
+                        {
+                            ["Green"] = new Vector3(-10f, 0f, 15f),
+                            ["Blue"] = new Vector3(-10f, 0f, 5f),
+                            ["Orange"] = new Vector3(-10f, 0f, -5f),
+                            ["Yellow"] = new Vector3(-10f, 0f, -15f),
+                            ["Purple"] = new Vector3(-10f, 0f, -25f)
+                        },
+                        ArenaGateSpheres = new List<Vector3>
+                        {
+                            new Vector3(10f, 0f, 10f),   // Arena 1 gate
+                            new Vector3(10f, 0f, 0f),    // Arena 2 gate
+                            new Vector3(10f, 0f, -10f)   // Arena 3 gate
+                        },
                         EnableVoiceIsolation = true,
-                        VoiceIsolationDistance = 50f
+                        VoiceIsolationDistance = 50f,
+                        MaxActiveTeamsPerArena = 2  // Only 2 teams can battle at once
                     }
                 };
             }
@@ -167,14 +187,116 @@ namespace Oxide.Plugins
 
         public class GlobalSettings
         {
-            [JsonProperty("Lobby Position")]
-            public Vector3 LobbyPosition { get; set; }
+            [JsonProperty("Central Lobby Position")]
+            public Vector3 LobbyCentral { get; set; }
+            
+            [JsonProperty("Team Color Spheres")]
+            public Dictionary<string, Vector3> TeamColorSpheres { get; set; }
+            
+            [JsonProperty("Arena Gate Spheres")]
+            public List<Vector3> ArenaGateSpheres { get; set; }
 
             [JsonProperty("Enable Voice Isolation")]
             public bool EnableVoiceIsolation { get; set; }
 
             [JsonProperty("Voice Isolation Distance")]
             public float VoiceIsolationDistance { get; set; }
+            
+            [JsonProperty("Max Active Teams Per Arena")]
+            public int MaxActiveTeamsPerArena { get; set; }
+        }
+
+        // Player state tracking for queue system
+        public enum PlayerState
+        {
+            None,
+            InLobby,
+            TeamSelected,
+            InQueue,
+            InBattle,
+            Spectating
+        }
+
+        public class PlayerInfo
+        {
+            public ulong PlayerId { get; set; }
+            public PlayerState State { get; set; }
+            public string SelectedTeam { get; set; }
+            public int QueuedArena { get; set; }
+            
+            public PlayerInfo(ulong playerId)
+            {
+                PlayerId = playerId;
+                State = PlayerState.None;
+                SelectedTeam = null;
+                QueuedArena = -1;
+            }
+        }
+
+        public class ArenaQueue
+        {
+            public int ArenaId { get; set; }
+            public List<string> WaitingTeams { get; set; }
+            public List<string> ActiveTeams { get; set; }
+            public int MaxActiveTeams { get; set; }
+            
+            public ArenaQueue(int arenaId, int maxActiveTeams = 2)
+            {
+                ArenaId = arenaId;
+                WaitingTeams = new List<string>();
+                ActiveTeams = new List<string>();
+                MaxActiveTeams = maxActiveTeams;
+            }
+            
+            public bool CanAddTeam(string team)
+            {
+                return !ActiveTeams.Contains(team) && !WaitingTeams.Contains(team);
+            }
+            
+            public void AddTeam(string team)
+            {
+                if (ActiveTeams.Count < MaxActiveTeams)
+                {
+                    ActiveTeams.Add(team);
+                }
+                else
+                {
+                    if (!WaitingTeams.Contains(team))
+                    {
+                        WaitingTeams.Add(team);
+                    }
+                }
+            }
+            
+            public void RemoveTeam(string team)
+            {
+                ActiveTeams.Remove(team);
+                WaitingTeams.Remove(team);
+            }
+            
+            public List<string> PullNextTeams()
+            {
+                var teamsToActivate = new List<string>();
+                
+                while (ActiveTeams.Count < MaxActiveTeams && WaitingTeams.Count > 0)
+                {
+                    var team = WaitingTeams[0];
+                    WaitingTeams.RemoveAt(0);
+                    ActiveTeams.Add(team);
+                    teamsToActivate.Add(team);
+                }
+                
+                return teamsToActivate;
+            }
+            
+            public int GetQueuePosition(string team)
+            {
+                if (ActiveTeams.Contains(team))
+                    return 0; // Currently playing
+                    
+                int index = WaitingTeams.IndexOf(team);
+                return index >= 0 ? index + 1 : -1;
+            }
         }
 
         protected override void LoadConfig()
@@ -233,13 +355,19 @@ namespace Oxide.Plugins
                 this.State = ArenaState.WaitingForPlayers;
                 this.Teams = new Dictionary<string, List<ulong>>
                 {
+                    ["Green"] = new List<ulong>(),
                     ["Blue"] = new List<ulong>(),
-                    ["Red"] = new List<ulong>()
+                    ["Orange"] = new List<ulong>(),
+                    ["Yellow"] = new List<ulong>(),
+                    ["Purple"] = new List<ulong>()
                 };
                 this.Score = new Dictionary<string, int>
                 {
+                    ["Green"] = 0,
                     ["Blue"] = 0,
-                    ["Red"] = 0
+                    ["Orange"] = 0,
+                    ["Yellow"] = 0,
+                    ["Purple"] = 0
                 };
                 this.Spectators = new List<ulong>();
                 this.CurrentRound = 0;
@@ -536,15 +664,16 @@ namespace Oxide.Plugins
                 State = ArenaState.Ended;
                 IsActive = false;
                 
-                string winner = Score["Blue"] > Score["Red"] ? "Blue" : "Red";
+                // Find winner (team with highest score)
+                string winner = Score.OrderByDescending(x => x.Value).First().Key;
                 BroadcastToArena($"Match ended! {winner} team wins!");
                 
                 PauseTimer();
                 
-                // Return all players to lobby after delay
-                plugin.timer.Once(10f, () =>
+                // Trigger queue rotation after delay
+                plugin.timer.Once(5f, () =>
                 {
-                    ReturnAllPlayersToLobby();
+                    plugin.OnArenaMatchEnd(ArenaId);
                     Reset();
                 });
             }
@@ -563,19 +692,28 @@ namespace Oxide.Plugins
                     var player = BasePlayer.FindByID(playerId);
                     if (player != null)
                     {
-                        player.Teleport(plugin.config.Global.LobbyPosition);
+                        player.Teleport(plugin.config.Global.LobbyCentral);
                         plugin.playerArenaMap.Remove(playerId);
+                        
+                        // Reset player info
+                        if (plugin.playerInfo.ContainsKey(playerId))
+                        {
+                            plugin.playerInfo[playerId].State = PlayerState.InLobby;
+                            plugin.playerInfo[playerId].SelectedTeam = null;
+                            plugin.playerInfo[playerId].QueuedArena = -1;
+                        }
                     }
                 }
             }
 
             public void Reset()
             {
-                Teams["Blue"].Clear();
-                Teams["Red"].Clear();
+                foreach (var team in Teams.Keys.ToList())
+                {
+                    Teams[team].Clear();
+                    Score[team] = 0;
+                }
                 Spectators.Clear();
-                Score["Blue"] = 0;
-                Score["Red"] = 0;
                 CurrentRound = 0;
                 State = ArenaState.WaitingForPlayers;
                 IsActive = false;
@@ -657,11 +795,19 @@ namespace Oxide.Plugins
             arenaInstances[1] = new ArenaInstance(this, config.Arena1);
             arenaInstances[2] = new ArenaInstance(this, config.Arena2);
             arenaInstances[3] = new ArenaInstance(this, config.Arena3);
+            
+            // Initialize queue system
+            arenaQueues[1] = new ArenaQueue(1, config.Global.MaxActiveTeamsPerArena);
+            arenaQueues[2] = new ArenaQueue(2, config.Global.MaxActiveTeamsPerArena);
+            arenaQueues[3] = new ArenaQueue(3, config.Global.MaxActiveTeamsPerArena);
 
             // Start resource optimization timer (runs every 30 seconds)
             timer.Repeat(30f, 0, OptimizeArenaResources);
+            
+            // Start sphere detection timer (runs every 0.5 seconds)
+            timer.Repeat(0.5f, 0, CheckPlayerSphereProximity);
 
-            Puts("PaintballArena plugin loaded - Multiple arena instances initialized");
+            Puts("PaintballArena plugin loaded - Queue-based system initialized");
         }
 
         private void Unload()
@@ -692,6 +838,220 @@ namespace Oxide.Plugins
             }
             adminSpheres.Clear();
         }
+
+        #endregion
+
+        #region Sphere Detection & Queue System
+
+        private void CheckPlayerSphereProximity()
+        {
+            foreach (var player in BasePlayer.activePlayerList)
+            {
+                if (player == null || !player.IsConnected)
+                    continue;
+
+                var playerId = player.userID;
+                
+                // Skip if player is already in battle
+                if (playerInfo.ContainsKey(playerId) && playerInfo[playerId].State == PlayerState.InBattle)
+                    continue;
+
+                // Check team color sphere proximity
+                foreach (var teamColor in config.Global.TeamColorSpheres)
+                {
+                    if (Vector3.Distance(player.transform.position, teamColor.Value) < SPHERE_DETECTION_DISTANCE)
+                    {
+                        OnPlayerEnterTeamSphere(player, teamColor.Key);
+                        return; // Only one action per tick
+                    }
+                }
+
+                // Check arena gate sphere proximity
+                for (int i = 0; i < config.Global.ArenaGateSpheres.Count; i++)
+                {
+                    if (Vector3.Distance(player.transform.position, config.Global.ArenaGateSpheres[i]) < SPHERE_DETECTION_DISTANCE)
+                    {
+                        OnPlayerEnterArenaGate(player, i + 1); // Arena ID is 1-based
+                        return; // Only one action per tick
+                    }
+                }
+            }
+        }
+
+        private void OnPlayerEnterTeamSphere(BasePlayer player, string team)
+        {
+            var playerId = player.userID;
+            
+            // Initialize player info if needed
+            if (!playerInfo.ContainsKey(playerId))
+            {
+                playerInfo[playerId] = new PlayerInfo(playerId);
+            }
+            
+            var info = playerInfo[playerId];
+            
+            // Skip if already selected this team
+            if (info.SelectedTeam == team)
+                return;
+            
+            // Assign team
+            info.SelectedTeam = team;
+            info.State = PlayerState.TeamSelected;
+            
+            SendReply(player, $"✓ Team Selected: <color={GetTeamColor(team)}>{team}</color>");
+            SendReply(player, "Now walk into an Arena Gate to join a match!");
+        }
+
+        private void OnPlayerEnterArenaGate(BasePlayer player, int arenaId)
+        {
+            var playerId = player.userID;
+            
+            // Check if player has selected a team
+            if (!playerInfo.ContainsKey(playerId) || string.IsNullOrEmpty(playerInfo[playerId].SelectedTeam))
+            {
+                SendReply(player, "❌ You must select a team color first!");
+                return;
+            }
+            
+            var info = playerInfo[playerId];
+            var team = info.SelectedTeam;
+            
+            // Check if already in this queue
+            if (info.QueuedArena == arenaId && info.State == PlayerState.InQueue)
+            {
+                SendReply(player, $"You're already queued for Arena {arenaId}");
+                return;
+            }
+            
+            // Get arena queue
+            if (!arenaQueues.ContainsKey(arenaId))
+            {
+                SendReply(player, $"❌ Arena {arenaId} not found!");
+                return;
+            }
+            
+            var queue = arenaQueues[arenaId];
+            var arena = arenaInstances[arenaId];
+            
+            // Check if team can be added
+            if (!queue.CanAddTeam(team))
+            {
+                SendReply(player, $"❌ Team {team} is already in Arena {arenaId}");
+                return;
+            }
+            
+            // Add team to queue
+            queue.AddTeam(team);
+            info.QueuedArena = arenaId;
+            info.State = PlayerState.InQueue;
+            
+            // Add player to arena's team
+            if (!arena.Teams.ContainsKey(team))
+            {
+                arena.Teams[team] = new List<ulong>();
+            }
+            if (!arena.Teams[team].Contains(playerId))
+            {
+                arena.Teams[team].Add(playerId);
+            }
+            
+            // Map player to arena
+            playerArenaMap[playerId] = arena;
+            
+            int queuePos = queue.GetQueuePosition(team);
+            if (queuePos == 0)
+            {
+                SendReply(player, $"✓ Joined Arena {arenaId} as <color={GetTeamColor(team)}>{team}</color> Team - ACTIVE");
+                
+                // Teleport to spectator to wait for match start
+                player.Teleport(arena.Config.SpectatorPosition);
+                
+                // Check if we can start a match
+                CheckAndStartArenaMatch(arenaId);
+            }
+            else
+            {
+                SendReply(player, $"✓ Queued for Arena {arenaId} as <color={GetTeamColor(team)}>{team}</color> Team - Position: {queuePos}");
+                
+                // Teleport to spectator area to wait
+                player.Teleport(arena.Config.SpectatorPosition);
+            }
+        }
+
+        private void CheckAndStartArenaMatch(int arenaId)
+        {
+            var queue = arenaQueues[arenaId];
+            var arena = arenaInstances[arenaId];
+            
+            // Need exactly 2 teams active to start
+            if (queue.ActiveTeams.Count != 2)
+                return;
+            
+            // Check if arena is already in progress
+            if (arena.State != ArenaState.WaitingForPlayers)
+                return;
+            
+            arena.CheckAndStartMatch();
+        }
+
+        private void OnArenaMatchEnd(int arenaId)
+        {
+            var queue = arenaQueues[arenaId];
+            var arena = arenaInstances[arenaId];
+            
+            // Move current active teams to spectator
+            foreach (var team in queue.ActiveTeams.ToList())
+            {
+                var teamPlayers = arena.Teams.ContainsKey(team) ? arena.Teams[team] : new List<ulong>();
+                foreach (var playerId in teamPlayers.ToList())
+                {
+                    var player = BasePlayer.FindByID(playerId);
+                    if (player != null)
+                    {
+                        player.Teleport(arena.Config.SpectatorPosition);
+                        
+                        if (playerInfo.ContainsKey(playerId))
+                        {
+                            playerInfo[playerId].State = PlayerState.Spectating;
+                        }
+                    }
+                }
+            }
+            
+            // Clear active teams
+            queue.ActiveTeams.Clear();
+            
+            // Pull next teams from queue
+            var nextTeams = queue.PullNextTeams();
+            
+            if (nextTeams.Count >= 2)
+            {
+                arena.BroadcastToArena($"Next match: {nextTeams[0]} vs {nextTeams[1]}!");
+                arena.State = ArenaState.WaitingForPlayers;
+                
+                // Update player states
+                foreach (var team in nextTeams)
+                {
+                    var teamPlayers = arena.Teams.ContainsKey(team) ? arena.Teams[team] : new List<ulong>();
+                    foreach (var playerId in teamPlayers)
+                    {
+                        if (playerInfo.ContainsKey(playerId))
+                        {
+                            playerInfo[playerId].State = PlayerState.InQueue;
+                        }
+                    }
+                }
+                
+                CheckAndStartArenaMatch(arenaId);
+            }
+            else
+            {
+                arena.BroadcastToArena("Waiting for more teams to join...");
+                arena.State = ArenaState.WaitingForPlayers;
+            }
+        }
+
+        #endregion
 
         private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
         {

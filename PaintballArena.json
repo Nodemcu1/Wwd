@@ -243,12 +243,57 @@
     }
   },
   "Global Settings": {
-    "Lobby Position": {
+    "Central Lobby Position": {
       "x": 0.0,
       "y": 0.0,
       "z": 0.0
     },
+    "Team Color Spheres": {
+      "Green": {
+        "x": -10.0,
+        "y": 0.0,
+        "z": 15.0
+      },
+      "Blue": {
+        "x": -10.0,
+        "y": 0.0,
+        "z": 5.0
+      },
+      "Orange": {
+        "x": -10.0,
+        "y": 0.0,
+        "z": -5.0
+      },
+      "Yellow": {
+        "x": -10.0,
+        "y": 0.0,
+        "z": -15.0
+      },
+      "Purple": {
+        "x": -10.0,
+        "y": 0.0,
+        "z": -25.0
+      }
+    },
+    "Arena Gate Spheres": [
+      {
+        "x": 10.0,
+        "y": 0.0,
+        "z": 10.0
+      },
+      {
+        "x": 10.0,
+        "y": 0.0,
+        "z": 0.0
+      },
+      {
+        "x": 10.0,
+        "y": 0.0,
+        "z": -10.0
+      }
+    ],
     "Enable Voice Isolation": true,
-    "Voice Isolation Distance": 50.0
+    "Voice Isolation Distance": 50.0,
+    "Max Active Teams Per Arena": 2
   }
 }
