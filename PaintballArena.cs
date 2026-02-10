@@ -976,23 +976,24 @@ namespace Oxide.Plugins
                 RectTransform = { AnchorMin = "0.05 0.56", AnchorMax = "0.95 0.62" }
             }, ADMIN_UI_NAME);
 
-            // Position buttons
+            // Position buttons - now with 3 buttons
             var posButtons = new[]
             {
+                new { Label = "Set Lobby", Command = "setlobby", Color = "0.3 0.3 0.5 1" },
                 new { Label = "Set Gate", Command = "setgate", Color = "0.2 0.5 0.2 1" },
                 new { Label = "Set Spectator", Command = "setspectator", Color = "0.5 0.5 0.2 1" }
             };
 
             for (int i = 0; i < posButtons.Length; i++)
             {
-                float xMin = 0.05f + (i * 0.48f);
-                float xMax = xMin + 0.45f;
+                float xMin = 0.05f + (i * 0.305f);
+                float xMax = xMin + 0.285f;
 
                 elements.Add(new CuiButton
                 {
                     Button = { Color = posButtons[i].Color, Command = $"adminsetup.{posButtons[i].Command}" },
                     RectTransform = { AnchorMin = $"{xMin} 0.48", AnchorMax = $"{xMax} 0.54" },
-                    Text = { Text = posButtons[i].Label, FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+                    Text = { Text = posButtons[i].Label, FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
                 }, ADMIN_UI_NAME);
             }
 
@@ -1055,7 +1056,7 @@ namespace Oxide.Plugins
             // Sphere colors legend
             elements.Add(new CuiLabel
             {
-                Text = { Text = "🟢 Gate  |  🟡 Spectator  |  🔵 Side A  |  🔴 Side B", FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "0.5 0.5 0.5 1" },
+                Text = { Text = "🟣 Lobby  |  🟢 Gate  |  🟡 Spectator  |  🔵 Side A  |  🔴 Side B", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "0.5 0.5 0.5 1" },
                 RectTransform = { AnchorMin = "0.05 0.08", AnchorMax = "0.95 0.13" }
             }, ADMIN_UI_NAME);
 
@@ -1091,6 +1092,18 @@ namespace Oxide.Plugins
             CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
             ShowAdminUI(player); // Refresh UI
             player.ChatMessage($"Selected Arena {arenaId} for setup");
+        }
+
+        [ConsoleCommand("adminsetup.setlobby")]
+        private void ConsoleSetLobby(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            SetLobbyPosition(player);
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
+            ShowAdminUI(player); // Refresh UI
         }
 
         [ConsoleCommand("adminsetup.setgate")]
@@ -1197,6 +1210,15 @@ namespace Oxide.Plugins
                 return;
 
             CuiHelper.DestroyUi(player, ADMIN_UI_NAME);
+        }
+
+        private void SetLobbyPosition(BasePlayer player)
+        {
+            Vector3 position = player.transform.position;
+            config.Global.LobbyPosition = position;
+            player.ChatMessage($"✓ Lobby position set globally at {FormatVector3(position)}");
+            
+            CreateSphere(player, position, "Lobby", new Color(0.5f, 0f, 0.5f, 0.5f)); // Purple
         }
 
         private void SetGatePosition(BasePlayer player)
