@@ -839,6 +839,85 @@ namespace Oxide.Plugins
             adminSpheres.Clear();
         }
 
+        private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
+        {
+            if (entity == null || info == null)
+                return;
+
+            var victim = entity as BasePlayer;
+            if (victim == null)
+                return;
+
+            var attacker = info.InitiatorPlayer;
+            if (attacker == null)
+                return;
+
+            // Check if both players are in paintball arena
+            if (!playerArenaMap.ContainsKey(victim.userID) || !playerArenaMap.ContainsKey(attacker.userID))
+                return;
+
+            var victimArena = playerArenaMap[victim.userID];
+            var attackerArena = playerArenaMap[attacker.userID];
+
+            // Crucial check: Are they in the SAME arena instance?
+            if (victimArena.ArenaId != attackerArena.ArenaId)
+            {
+                // Different arenas - cancel damage
+                info.damageTypes.Clear();
+                return;
+            }
+
+            // Check if they're on the same team
+            string victimTeam = victimArena.GetPlayerTeam(victim.userID);
+            string attackerTeam = attackerArena.GetPlayerTeam(attacker.userID);
+
+            if (victimTeam == attackerTeam)
+            {
+                // Friendly fire - cancel damage
+                info.damageTypes.Clear();
+                return;
+            }
+
+            // One hit = elimination in paintball
+            info.damageTypes.Clear();
+            NextTick(() =>
+            {
+                victimArena.HandleElimination(victim, attacker);
+            });
+        }
+
+        private object OnPlayerVoice(BasePlayer player, byte[] data)
+        {
+            if (!config.Global.EnableVoiceIsolation)
+                return null;
+
+            if (!playerArenaMap.ContainsKey(player.userID))
+                return null;
+
+            var playerArena = playerArenaMap[player.userID];
+
+            // Only allow voice to players in the same arena
+            foreach (var listener in BasePlayer.activePlayerList)
+            {
+                if (listener.userID == player.userID)
+                    continue;
+
+                if (!playerArenaMap.ContainsKey(listener.userID))
+                    continue;
+
+                var listenerArena = playerArenaMap[listener.userID];
+                
+                if (listenerArena.ArenaId != playerArena.ArenaId)
+                {
+                    // Different arena - block voice
+                    // This is a simplified approach; actual implementation may need network manipulation
+                    continue;
+                }
+            }
+
+            return null;
+        }
+
         #endregion
 
         #region Sphere Detection & Queue System
@@ -1049,87 +1128,6 @@ namespace Oxide.Plugins
                 arena.BroadcastToArena("Waiting for more teams to join...");
                 arena.State = ArenaState.WaitingForPlayers;
             }
-        }
-
-        #endregion
-
-        private void OnEntityTakeDamage(BaseCombatEntity entity, HitInfo info)
-        {
-            if (entity == null || info == null)
-                return;
-
-            var victim = entity as BasePlayer;
-            if (victim == null)
-                return;
-
-            var attacker = info.InitiatorPlayer;
-            if (attacker == null)
-                return;
-
-            // Check if both players are in paintball arena
-            if (!playerArenaMap.ContainsKey(victim.userID) || !playerArenaMap.ContainsKey(attacker.userID))
-                return;
-
-            var victimArena = playerArenaMap[victim.userID];
-            var attackerArena = playerArenaMap[attacker.userID];
-
-            // Crucial check: Are they in the SAME arena instance?
-            if (victimArena.ArenaId != attackerArena.ArenaId)
-            {
-                // Different arenas - cancel damage
-                info.damageTypes.Clear();
-                return;
-            }
-
-            // Check if they're on the same team
-            string victimTeam = victimArena.GetPlayerTeam(victim.userID);
-            string attackerTeam = attackerArena.GetPlayerTeam(attacker.userID);
-
-            if (victimTeam == attackerTeam)
-            {
-                // Friendly fire - cancel damage
-                info.damageTypes.Clear();
-                return;
-            }
-
-            // One hit = elimination in paintball
-            info.damageTypes.Clear();
-            NextTick(() =>
-            {
-                victimArena.HandleElimination(victim, attacker);
-            });
-        }
-
-        private object OnPlayerVoice(BasePlayer player, byte[] data)
-        {
-            if (!config.Global.EnableVoiceIsolation)
-                return null;
-
-            if (!playerArenaMap.ContainsKey(player.userID))
-                return null;
-
-            var playerArena = playerArenaMap[player.userID];
-
-            // Only allow voice to players in the same arena
-            foreach (var listener in BasePlayer.activePlayerList)
-            {
-                if (listener.userID == player.userID)
-                    continue;
-
-                if (!playerArenaMap.ContainsKey(listener.userID))
-                    continue;
-
-                var listenerArena = playerArenaMap[listener.userID];
-                
-                if (listenerArena.ArenaId != playerArena.ArenaId)
-                {
-                    // Different arena - block voice
-                    // This is a simplified approach; actual implementation may need network manipulation
-                    continue;
-                }
-            }
-
-            return null;
         }
 
         #endregion
