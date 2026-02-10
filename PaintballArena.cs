@@ -60,6 +60,11 @@ namespace Oxide.Plugins
                         {
                             ["Blue"] = new List<Vector3> { new Vector3(150f, 0f, 150f) },
                             ["Red"] = new List<Vector3> { new Vector3(50f, 0f, 50f) }
+                        },
+                        TeamSelectionSpheres = new Dictionary<string, Vector3>
+                        {
+                            ["Blue"] = new Vector3(10f, 0f, 10f),
+                            ["Red"] = new Vector3(10f, 0f, -10f)
                         }
                     },
                     Arena2 = new ArenaConfig
@@ -75,6 +80,11 @@ namespace Oxide.Plugins
                         {
                             ["Blue"] = new List<Vector3> { new Vector3(250f, 0f, 250f) },
                             ["Red"] = new List<Vector3> { new Vector3(150f, 0f, 150f) }
+                        },
+                        TeamSelectionSpheres = new Dictionary<string, Vector3>
+                        {
+                            ["Blue"] = new Vector3(20f, 0f, 10f),
+                            ["Red"] = new Vector3(20f, 0f, -10f)
                         }
                     },
                     Arena3 = new ArenaConfig
@@ -90,6 +100,11 @@ namespace Oxide.Plugins
                         {
                             ["Blue"] = new List<Vector3> { new Vector3(350f, 0f, 350f) },
                             ["Red"] = new List<Vector3> { new Vector3(250f, 0f, 250f) }
+                        },
+                        TeamSelectionSpheres = new Dictionary<string, Vector3>
+                        {
+                            ["Blue"] = new Vector3(30f, 0f, 10f),
+                            ["Red"] = new Vector3(30f, 0f, -10f)
                         }
                     },
                     Global = new GlobalSettings
@@ -127,6 +142,9 @@ namespace Oxide.Plugins
 
             [JsonProperty("Team Spawns")]
             public Dictionary<string, List<Vector3>> TeamSpawns { get; set; }
+
+            [JsonProperty("Team Selection Spheres")]
+            public Dictionary<string, Vector3> TeamSelectionSpheres { get; set; }
         }
 
         public class GlobalSettings
@@ -1012,24 +1030,39 @@ namespace Oxide.Plugins
                 Text = { Text = "Add Side B Spawn", FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
+            // Team selection sphere buttons (lobby)
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.1 0.1 0.4 1", Command = "adminsetup.setteamblue" },
+                RectTransform = { AnchorMin = "0.05 0.33", AnchorMax = "0.47 0.38" },
+                Text = { Text = "Set Blue Team Sphere", FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
+            elements.Add(new CuiButton
+            {
+                Button = { Color = "0.4 0.1 0.1 1", Command = "adminsetup.setteamred" },
+                RectTransform = { AnchorMin = "0.53 0.33", AnchorMax = "0.95 0.38" },
+                Text = { Text = "Set Red Team Sphere", FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
+            }, ADMIN_UI_NAME);
+
             // Utility Section
             elements.Add(new CuiLabel
             {
                 Text = { Text = "UTILITIES:", FontSize = 12, Align = TextAnchor.MiddleLeft, Color = "0.7 0.7 0.7 1" },
-                RectTransform = { AnchorMin = "0.05 0.32", AnchorMax = "0.95 0.38" }
+                RectTransform = { AnchorMin = "0.05 0.25", AnchorMax = "0.95 0.31" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.4 0.3 0.2 1", Command = "adminsetup.clearspheres" },
-                RectTransform = { AnchorMin = "0.05 0.24", AnchorMax = "0.47 0.30" },
+                RectTransform = { AnchorMin = "0.05 0.17", AnchorMax = "0.47 0.23" },
                 Text = { Text = "Clear Spheres", FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.2 0.4 0.3 1", Command = "adminsetup.save" },
-                RectTransform = { AnchorMin = "0.53 0.24", AnchorMax = "0.95 0.30" },
+                RectTransform = { AnchorMin = "0.53 0.17", AnchorMax = "0.95 0.23" },
                 Text = { Text = "Save Config", FontSize = 11, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
@@ -1049,22 +1082,22 @@ namespace Oxide.Plugins
 
             elements.Add(new CuiLabel
             {
-                Text = { Text = infoText, FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "0.6 0.6 0.6 1" },
-                RectTransform = { AnchorMin = "0.05 0.14", AnchorMax = "0.95 0.22" }
+                Text = { Text = infoText, FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "0.6 0.6 0.6 1" },
+                RectTransform = { AnchorMin = "0.05 0.11", AnchorMax = "0.95 0.16" }
             }, ADMIN_UI_NAME);
 
             // Sphere colors legend
             elements.Add(new CuiLabel
             {
                 Text = { Text = "🟣 Lobby  |  🟢 Gate  |  🟡 Spectator  |  🔵 Side A  |  🔴 Side B", FontSize = 9, Align = TextAnchor.MiddleCenter, Color = "0.5 0.5 0.5 1" },
-                RectTransform = { AnchorMin = "0.05 0.08", AnchorMax = "0.95 0.13" }
+                RectTransform = { AnchorMin = "0.05 0.06", AnchorMax = "0.95 0.10" }
             }, ADMIN_UI_NAME);
 
             // Close button
             elements.Add(new CuiButton
             {
                 Button = { Color = "0.6 0.2 0.2 1", Command = "adminsetup.close" },
-                RectTransform = { AnchorMin = "0.4 0.02", AnchorMax = "0.6 0.06" },
+                RectTransform = { AnchorMin = "0.4 0.01", AnchorMax = "0.6 0.05" },
                 Text = { Text = "CLOSE", FontSize = 10, Align = TextAnchor.MiddleCenter, Color = "1 1 1 1" }
             }, ADMIN_UI_NAME);
 
@@ -1126,6 +1159,30 @@ namespace Oxide.Plugins
                 return;
 
             SetSpectatorPosition(player);
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
+            ShowAdminUI(player); // Refresh UI
+        }
+
+        [ConsoleCommand("adminsetup.setteamblue")]
+        private void ConsoleSetTeamBlue(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            SetTeamSelectionSphere(player, "Blue");
+            CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
+            ShowAdminUI(player); // Refresh UI
+        }
+
+        [ConsoleCommand("adminsetup.setteamred")]
+        private void ConsoleSetTeamRed(ConsoleSystem.Arg arg)
+        {
+            var player = arg.Player();
+            if (player == null || !permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
+                return;
+
+            SetTeamSelectionSphere(player, "Red");
             CuiHelper.DestroyUi(player, ADMIN_UI_NAME); // Destroy old UI first
             ShowAdminUI(player); // Refresh UI
         }
@@ -1260,6 +1317,33 @@ namespace Oxide.Plugins
                 player.ChatMessage($"✓ Spectator position set for Arena {arenaId}");
                 
                 CreateSphere(player, position, "Spectator", new Color(1f, 1f, 0f, 0.5f));
+            }
+        }
+
+        private void SetTeamSelectionSphere(BasePlayer player, string team)
+        {
+            if (!adminCurrentArena.ContainsKey(player.userID))
+            {
+                player.ChatMessage("Select an arena first");
+                return;
+            }
+
+            int arenaId = adminCurrentArena[player.userID];
+            Vector3 position = player.transform.position;
+
+            var arenaConfig = GetArenaConfig(arenaId);
+            if (arenaConfig != null)
+            {
+                if (arenaConfig.TeamSelectionSpheres == null)
+                {
+                    arenaConfig.TeamSelectionSpheres = new Dictionary<string, Vector3>();
+                }
+
+                arenaConfig.TeamSelectionSpheres[team] = position;
+                player.ChatMessage($"✓ {team} Team selection sphere set for Arena {arenaId}");
+                
+                Color sphereColor = team == "Blue" ? new Color(0f, 0.3f, 1f, 0.5f) : new Color(1f, 0.3f, 0f, 0.5f);
+                CreateSphere(player, position, $"{team} Team Sphere", sphereColor);
             }
         }
 
