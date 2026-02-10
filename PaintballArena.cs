@@ -1712,7 +1712,7 @@ namespace Oxide.Plugins
             config.Global.ArenaGateSpheres[arenaId - 1] = position;
             
             // Create sphere marker (dark grey for arena gates)
-            CreateAdminSphere(player, position, "0.3 0.3 0.3 0.5");
+            CreateSphere(player, position, $"Arena {arenaId} Gate", new Color(0.3f, 0.3f, 0.3f, 0.5f));
             
             player.ChatMessage($"✓ Arena {arenaId} Gate sphere set at your position");
             
