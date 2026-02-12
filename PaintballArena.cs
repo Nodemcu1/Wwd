@@ -222,6 +222,8 @@ namespace Oxide.Plugins
             public PlayerState State { get; set; }
             public string SelectedTeam { get; set; }
             public int QueuedArena { get; set; }
+            public string ChosenSide { get; set; }  // "A" or "B"
+            public PendingJoinInfo PendingJoin { get; set; }  // For confirmation
             
             public PlayerInfo(ulong playerId)
             {
@@ -229,6 +231,23 @@ namespace Oxide.Plugins
                 State = PlayerState.None;
                 SelectedTeam = null;
                 QueuedArena = -1;
+                ChosenSide = null;
+                PendingJoin = null;
+            }
+        }
+        
+        public class PendingJoinInfo
+        {
+            public int ArenaId { get; set; }
+            public string Team { get; set; }
+            public string Side { get; set; }
+            public Timer ConfirmationTimer { get; set; }
+            
+            public PendingJoinInfo(int arenaId, string team, string side)
+            {
+                ArenaId = arenaId;
+                Team = team;
+                Side = side;
             }
         }
 
@@ -529,16 +548,8 @@ namespace Oxide.Plugins
 
             public void SpawnAllPlayers()
             {
-                // Use Side A and Side B spawns (not team-specific spawns)
-                // First team gets Side A, second team gets Side B
+                // Use Side A and Side B spawns based on player choice
                 
-                var teamNames = Teams.Keys.ToList();
-                if (teamNames.Count < 2)
-                {
-                    plugin.Puts("Not enough teams to spawn players");
-                    return;
-                }
-
                 // Get Side A and Side B spawns from config
                 var sideASpawns = Config.TeamSpawns.ContainsKey("SideA") ? Config.TeamSpawns["SideA"] : new List<Vector3>();
                 var sideBSpawns = Config.TeamSpawns.ContainsKey("SideB") ? Config.TeamSpawns["SideB"] : new List<Vector3>();
@@ -555,23 +566,40 @@ namespace Oxide.Plugins
                     return;
                 }
 
-                // First team → Side A, Second team → Side B
-                string teamA = teamNames[0];
-                string teamB = teamNames[1];
-
                 int sideAIndex = 0;
                 int sideBIndex = 0;
 
-                // Spawn Team A players at Side A spawns
-                if (Teams.ContainsKey(teamA))
+                // Spawn all players based on their chosen side
+                foreach (var teamKvp in Teams)
                 {
-                    foreach (var playerId in Teams[teamA])
+                    foreach (var playerId in teamKvp.Value)
                     {
                         var player = BasePlayer.FindByID(playerId);
                         if (player != null && player.IsConnected)
                         {
-                            var spawnPos = sideASpawns[sideAIndex % sideASpawns.Count];
-                            sideAIndex++;
+                            // Get player's chosen side
+                            string chosenSide = "A"; // Default to A
+                            if (plugin.playerInfo.ContainsKey(playerId))
+                            {
+                                var pInfo = plugin.playerInfo[playerId];
+                                if (!string.IsNullOrEmpty(pInfo.ChosenSide))
+                                {
+                                    chosenSide = pInfo.ChosenSide;
+                                }
+                            }
+                            
+                            // Spawn based on chosen side
+                            Vector3 spawnPos;
+                            if (chosenSide == "A")
+                            {
+                                spawnPos = sideASpawns[sideAIndex % sideASpawns.Count];
+                                sideAIndex++;
+                            }
+                            else // Side B
+                            {
+                                spawnPos = sideBSpawns[sideBIndex % sideBSpawns.Count];
+                                sideBIndex++;
+                            }
                             
                             Vector3 fixedSpawn = plugin.FixSpawnPosition(spawnPos);
                             player.Teleport(fixedSpawn);
@@ -582,27 +610,7 @@ namespace Oxide.Plugins
                     }
                 }
 
-                // Spawn Team B players at Side B spawns
-                if (Teams.ContainsKey(teamB))
-                {
-                    foreach (var playerId in Teams[teamB])
-                    {
-                        var player = BasePlayer.FindByID(playerId);
-                        if (player != null && player.IsConnected)
-                        {
-                            var spawnPos = sideBSpawns[sideBIndex % sideBSpawns.Count];
-                            sideBIndex++;
-                            
-                            Vector3 fixedSpawn = plugin.FixSpawnPosition(spawnPos);
-                            player.Teleport(fixedSpawn);
-                            player.SetPlayerFlag(BasePlayer.PlayerFlags.Wounded, false);
-                            player.health = 100f;
-                            player.SendNetworkUpdateImmediate();
-                        }
-                    }
-                }
-
-                plugin.Puts($"Spawned players: {teamA} → Side A, {teamB} → Side B");
+                plugin.Puts($"Spawned players: Side A ({sideAIndex}) | Side B ({sideBIndex})");
             }
 
             public void HandleElimination(BasePlayer victim, BasePlayer attacker)
@@ -1316,9 +1324,10 @@ namespace Oxide.Plugins
             switch (args[0].ToLower())
             {
                 case "join":
-                    if (args.Length < 3)
+                    if (args.Length < 4)
                     {
-                        player.ChatMessage("Usage: /arena join <1-3> <Green/Blue/Orange/Yellow/Purple>");
+                        player.ChatMessage("Usage: /arena join <1-3> <Green/Blue/Orange/Yellow/Purple> <A/B>");
+                        player.ChatMessage("Example: /arena join 1 Green A");
                         return;
                     }
                     
@@ -1335,8 +1344,26 @@ namespace Oxide.Plugins
                         player.ChatMessage("Invalid team. Choose: Green, Blue, Orange, Yellow, or Purple");
                         return;
                     }
+                    
+                    string side = args[3].ToUpper();
+                    if (side != "A" && side != "B")
+                    {
+                        player.ChatMessage("Invalid side. Choose A or B");
+                        return;
+                    }
 
-                    JoinArena(player, arenaId, team);
+                    // Store pending join and show confirmation
+                    InitiateJoinWithConfirmation(player, arenaId, team, side);
+                    break;
+                
+                case "confirm":
+                case "yes":
+                    ConfirmJoin(player);
+                    break;
+                
+                case "cancel":
+                case "no":
+                    CancelJoin(player);
                     break;
 
                 case "leave":
@@ -1373,6 +1400,184 @@ namespace Oxide.Plugins
                     player.ChatMessage("Unknown command");
                     break;
             }
+        }
+        
+        // ========== JOIN CONFIRMATION SYSTEM ==========
+        
+        private void InitiateJoinWithConfirmation(BasePlayer player, int arenaId, string team, string side)
+        {
+            // Check if arena exists
+            if (!arenaInstances.ContainsKey(arenaId))
+            {
+                player.ChatMessage("Arena not found");
+                return;
+            }
+            
+            var arena = arenaInstances[arenaId];
+            
+            // Check if arena is full or in progress
+            if (arena.State == ArenaState.InProgress)
+            {
+                player.ChatMessage("This arena is currently in a match. Please wait.");
+                return;
+            }
+            
+            // Create or get player info
+            if (!playerInfo.ContainsKey(player.userID))
+            {
+                playerInfo[player.userID] = new PlayerInfo(player.userID);
+            }
+            
+            var info = playerInfo[player.userID];
+            
+            // Cancel any existing pending join
+            if (info.PendingJoin != null && info.PendingJoin.ConfirmationTimer != null)
+            {
+                info.PendingJoin.ConfirmationTimer.Destroy();
+            }
+            
+            // Create pending join
+            info.PendingJoin = new PendingJoinInfo(arenaId, team, side);
+            
+            // Set timeout timer (30 seconds)
+            info.PendingJoin.ConfirmationTimer = timer.Once(30f, () =>
+            {
+                if (playerInfo.ContainsKey(player.userID) && playerInfo[player.userID].PendingJoin != null)
+                {
+                    player.ChatMessage("Join request timed out. Use /arena join again to try.");
+                    playerInfo[player.userID].PendingJoin = null;
+                }
+            });
+            
+            // Show confirmation message
+            player.ChatMessage("═══════════════════════════════════");
+            player.ChatMessage($"🎮 <color=#00FF00>ARENA JOIN REQUEST</color>");
+            player.ChatMessage("═══════════════════════════════════");
+            player.ChatMessage($"Arena: <color=#FFFF00>{arenaId}</color> ({arena.Mode})");
+            player.ChatMessage($"Team: <color={GetTeamColorHex(team)}>{team}</color>");
+            player.ChatMessage($"Side: <color=#00FFFF>{side}</color>");
+            player.ChatMessage("");
+            player.ChatMessage("⏱️ You have 30 seconds to confirm");
+            player.ChatMessage("");
+            player.ChatMessage("✅ Type <color=#00FF00>/arena confirm</color> or <color=#00FF00>/arena yes</color> to join");
+            player.ChatMessage("❌ Type <color=#FF0000>/arena cancel</color> or <color=#FF0000>/arena no</color> to cancel");
+            player.ChatMessage("═══════════════════════════════════");
+        }
+        
+        private void ConfirmJoin(BasePlayer player)
+        {
+            if (!playerInfo.ContainsKey(player.userID) || playerInfo[player.userID].PendingJoin == null)
+            {
+                player.ChatMessage("No pending join request. Use /arena join first.");
+                return;
+            }
+            
+            var info = playerInfo[player.userID];
+            var pending = info.PendingJoin;
+            
+            // Cancel timeout
+            if (pending.ConfirmationTimer != null)
+            {
+                pending.ConfirmationTimer.Destroy();
+            }
+            
+            // Execute the join
+            JoinArenaWithSide(player, pending.ArenaId, pending.Team, pending.Side);
+            
+            // Clear pending
+            info.PendingJoin = null;
+        }
+        
+        private void CancelJoin(BasePlayer player)
+        {
+            if (!playerInfo.ContainsKey(player.userID) || playerInfo[player.userID].PendingJoin == null)
+            {
+                player.ChatMessage("No pending join request to cancel.");
+                return;
+            }
+            
+            var info = playerInfo[player.userID];
+            
+            // Cancel timeout
+            if (info.PendingJoin.ConfirmationTimer != null)
+            {
+                info.PendingJoin.ConfirmationTimer.Destroy();
+            }
+            
+            player.ChatMessage("❌ Join request cancelled.");
+            
+            // Clear pending
+            info.PendingJoin = null;
+        }
+        
+        private string GetTeamColorHex(string team)
+        {
+            switch (team)
+            {
+                case "Green": return "#00CC00";
+                case "Blue": return "#004DFF";
+                case "Orange": return "#FF8000";
+                case "Yellow": return "#FFFF00";
+                case "Purple": return "#9900CC";
+                default: return "#FFFFFF";
+            }
+        }
+        
+        private void JoinArenaWithSide(BasePlayer player, int arenaId, string team, string side)
+        {
+            // Remove from current arena if in one
+            if (playerArenaMap.ContainsKey(player.userID))
+            {
+                LeaveArena(player);
+            }
+
+            if (!arenaInstances.ContainsKey(arenaId))
+            {
+                player.ChatMessage("Arena not found");
+                return;
+            }
+
+            var arena = arenaInstances[arenaId];
+            
+            if (arena.State == ArenaState.InProgress)
+            {
+                player.ChatMessage("This arena is currently in a match. Please wait.");
+                return;
+            }
+
+            // Add to team
+            if (!arena.Teams.ContainsKey(team))
+            {
+                player.ChatMessage("Invalid team");
+                return;
+            }
+
+            arena.Teams[team].Add(player.userID);
+            playerArenaMap[player.userID] = arena;
+            
+            // Store chosen side in player info
+            if (!playerInfo.ContainsKey(player.userID))
+            {
+                playerInfo[player.userID] = new PlayerInfo(player.userID);
+            }
+            playerInfo[player.userID].ChosenSide = side;
+            playerInfo[player.userID].SelectedTeam = team;
+            playerInfo[player.userID].QueuedArena = arenaId;
+
+            player.ChatMessage("═══════════════════════════════════");
+            player.ChatMessage($"✅ <color=#00FF00>JOINED SUCCESSFULLY!</color>");
+            player.ChatMessage("═══════════════════════════════════");
+            player.ChatMessage($"Arena: <color=#FFFF00>{arenaId}</color>");
+            player.ChatMessage($"Team: <color={GetTeamColorHex(team)}>{team}</color>");
+            player.ChatMessage($"Side: <color=#00FFFF>{side}</color>");
+            player.ChatMessage($"Mode: <color=#FFB000>{arena.Mode}</color>");
+            player.ChatMessage("═══════════════════════════════════");
+            
+            // Check if we can start the match
+            arena.CheckAndStartMatch();
+            
+            // Update scoreboard
+            UpdateScoreboardForPlayer(player);
         }
 
         private void JoinArena(BasePlayer player, int arenaId, string team)
@@ -1445,15 +1650,49 @@ namespace Oxide.Plugins
 
         private void ShowArenaStatus(BasePlayer player)
         {
-            player.ChatMessage("=== Arena Status ===");
+            player.ChatMessage("═══════════════════════════════════");
+            player.ChatMessage("🎮 <color=#00FF00>ARENA STATUS</color>");
+            player.ChatMessage("═══════════════════════════════════");
             
+            // Show player's current status first
+            if (playerArenaMap.ContainsKey(player.userID))
+            {
+                var myArena = playerArenaMap[player.userID];
+                var myInfo = playerInfo.ContainsKey(player.userID) ? playerInfo[player.userID] : null;
+                
+                player.ChatMessage("📍 <color=#FFFF00>YOUR STATUS:</color>");
+                player.ChatMessage($"  Arena: <color=#00FFFF>{myArena.ArenaId}</color>");
+                player.ChatMessage($"  Team: <color={GetTeamColorHex(myInfo?.SelectedTeam ?? "Unknown")}>{myInfo?.SelectedTeam ?? "Unknown"}</color>");
+                player.ChatMessage($"  Side: <color=#00FFFF>{myInfo?.ChosenSide ?? "Unknown"}</color>");
+                player.ChatMessage($"  State: <color=#FFB000>{myInfo?.State ?? PlayerState.None}</color>");
+                player.ChatMessage("");
+            }
+            else
+            {
+                player.ChatMessage("📍 <color=#FFFF00>YOUR STATUS:</color> Not in any arena");
+                player.ChatMessage("");
+            }
+            
+            // Show all arenas
+            player.ChatMessage("🏟️ <color=#FFFF00>ALL ARENAS:</color>");
             foreach (var kvp in arenaInstances)
             {
                 var arena = kvp.Value;
-                player.ChatMessage($"Arena {arena.ArenaId}: {arena.State} | Mode: {arena.Mode}");
-                player.ChatMessage($"  Players: {arena.GetTotalPlayers()} (Blue: {arena.Teams["Blue"].Count}, Red: {arena.Teams["Red"].Count})");
-                player.ChatMessage($"  Score: Blue {arena.Score["Blue"]} - {arena.Score["Red"]} Red");
+                player.ChatMessage($"━━━ Arena {arena.ArenaId} ━━━");
+                player.ChatMessage($"  Mode: <color=#FFB000>{arena.Mode}</color>");
+                player.ChatMessage($"  State: <color=#00FFFF>{arena.State}</color>");
+                player.ChatMessage($"  Total Players: {arena.GetTotalPlayers()}");
+                
+                // Show team counts
+                foreach (var teamKvp in arena.Teams)
+                {
+                    if (teamKvp.Value.Count > 0)
+                    {
+                        player.ChatMessage($"    {teamKvp.Key}: {teamKvp.Value.Count} players");
+                    }
+                }
             }
+            player.ChatMessage("═══════════════════════════════════");
         }
 
         private void ForceStartArena(BasePlayer player, int arenaId)
