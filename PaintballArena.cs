@@ -23,6 +23,9 @@ namespace Oxide.Plugins
         private Dictionary<ulong, PlayerInfo> playerInfo = new Dictionary<ulong, PlayerInfo>();
         private Dictionary<int, ArenaQueue> arenaQueues = new Dictionary<int, ArenaQueue>();
         
+        // Voting system
+        private Dictionary<int, VoteInfo> activeVotes = new Dictionary<int, VoteInfo>();  // arenaId -> VoteInfo
+        
         // Admin setup spheres
         private Dictionary<ulong, List<SphereEntity>> adminSpheres = new Dictionary<ulong, List<SphereEntity>>();
         private Dictionary<ulong, int> adminCurrentArena = new Dictionary<ulong, int>();
@@ -249,6 +252,27 @@ namespace Oxide.Plugins
                 Team = team;
                 Side = side;
             }
+        }
+        
+        public class VoteInfo
+        {
+            public int ArenaId { get; set; }
+            public string Action { get; set; }  // "start" or "stop"
+            public Dictionary<ulong, bool> Votes { get; set; }  // playerId -> yes/no
+            public Timer VoteTimer { get; set; }
+            public ulong InitiatorId { get; set; }
+            
+            public VoteInfo(int arenaId, string action, ulong initiatorId)
+            {
+                ArenaId = arenaId;
+                Action = action;
+                InitiatorId = initiatorId;
+                Votes = new Dictionary<ulong, bool>();
+            }
+            
+            public int GetYesVotes() => Votes.Count(v => v.Value == true);
+            public int GetNoVotes() => Votes.Count(v => v.Value == false);
+            public int GetTotalVotes() => Votes.Count;
         }
 
         public class ArenaQueue
@@ -1373,6 +1397,34 @@ namespace Oxide.Plugins
                 case "status":
                     ShowArenaStatus(player);
                     break;
+                
+                case "vote":
+                    if (args.Length < 2)
+                    {
+                        player.ChatMessage("Usage: /arena vote <start/stop/yes/no>");
+                        return;
+                    }
+                    
+                    string voteAction = args[1].ToLower();
+                    switch (voteAction)
+                    {
+                        case "start":
+                            InitiateVoteStart(player);
+                            break;
+                        case "stop":
+                            InitiateVoteStop(player);
+                            break;
+                        case "yes":
+                            VoteYes(player);
+                            break;
+                        case "no":
+                            VoteNo(player);
+                            break;
+                        default:
+                            player.ChatMessage("Unknown vote action. Use: start, stop, yes, or no");
+                            break;
+                    }
+                    break;
 
                 case "forcestart":
                     if (!permission.UserHasPermission(player.UserIDString, ADMIN_PERMISSION))
@@ -1731,6 +1783,260 @@ namespace Oxide.Plugins
             arena.StartMatch();
             
             player.ChatMessage($"Arena {arenaId} force started!");
+        }
+        
+        // ========== VOTING SYSTEM ==========
+        
+        private void InitiateVoteStart(BasePlayer player)
+        {
+            // Check if player is in an arena
+            if (!playerArenaMap.ContainsKey(player.userID))
+            {
+                player.ChatMessage("You must be in an arena to initiate a vote.");
+                return;
+            }
+            
+            var arena = playerArenaMap[player.userID];
+            
+            // Check if match is already in progress
+            if (arena.State == ArenaState.InProgress)
+            {
+                player.ChatMessage("Match is already in progress!");
+                return;
+            }
+            
+            // Check if there's already an active vote
+            if (activeVotes.ContainsKey(arena.ArenaId))
+            {
+                player.ChatMessage("There's already an active vote in this arena.");
+                return;
+            }
+            
+            // Check if there are enough players
+            int totalPlayers = arena.GetTotalPlayers();
+            if (totalPlayers < 2)
+            {
+                player.ChatMessage("Not enough players to start a vote (need at least 2).");
+                return;
+            }
+            
+            // Create vote
+            var vote = new VoteInfo(arena.ArenaId, "start", player.userID);
+            activeVotes[arena.ArenaId] = vote;
+            
+            // Automatically add initiator's yes vote
+            vote.Votes[player.userID] = true;
+            
+            // Notify all players in arena
+            BroadcastToArena(arena, "═══════════════════════════════════");
+            BroadcastToArena(arena, "🗳️ <color=#00FF00>VOTE TO START MATCH</color>");
+            BroadcastToArena(arena, "═══════════════════════════════════");
+            BroadcastToArena(arena, $"Initiated by: <color=#FFFF00>{player.displayName}</color>");
+            BroadcastToArena(arena, "");
+            BroadcastToArena(arena, "✅ Type <color=#00FF00>/arena vote yes</color> to vote YES");
+            BroadcastToArena(arena, "❌ Type <color=#FF0000>/arena vote no</color> to vote NO");
+            BroadcastToArena(arena, "");
+            BroadcastToArena(arena, "⏱️ Vote ends in 60 seconds");
+            BroadcastToArena(arena, "Need >50% YES votes to start");
+            BroadcastToArena(arena, "═══════════════════════════════════");
+            
+            // Set timeout
+            vote.VoteTimer = timer.Once(60f, () =>
+            {
+                if (activeVotes.ContainsKey(arena.ArenaId))
+                {
+                    ProcessVoteResult(arena.ArenaId);
+                }
+            });
+        }
+        
+        private void InitiateVoteStop(BasePlayer player)
+        {
+            // Check if player is in an arena
+            if (!playerArenaMap.ContainsKey(player.userID))
+            {
+                player.ChatMessage("You must be in an arena to initiate a vote.");
+                return;
+            }
+            
+            var arena = playerArenaMap[player.userID];
+            
+            // Check if match is in progress
+            if (arena.State != ArenaState.InProgress)
+            {
+                player.ChatMessage("No match is currently in progress!");
+                return;
+            }
+            
+            // Check if there's already an active vote
+            if (activeVotes.ContainsKey(arena.ArenaId))
+            {
+                player.ChatMessage("There's already an active vote in this arena.");
+                return;
+            }
+            
+            // Create vote
+            var vote = new VoteInfo(arena.ArenaId, "stop", player.userID);
+            activeVotes[arena.ArenaId] = vote;
+            
+            // Automatically add initiator's yes vote
+            vote.Votes[player.userID] = true;
+            
+            // Notify all players in arena
+            BroadcastToArena(arena, "═══════════════════════════════════");
+            BroadcastToArena(arena, "🗳️ <color=#FF0000>VOTE TO STOP MATCH</color>");
+            BroadcastToArena(arena, "═══════════════════════════════════");
+            BroadcastToArena(arena, $"Initiated by: <color=#FFFF00>{player.displayName}</color>");
+            BroadcastToArena(arena, "");
+            BroadcastToArena(arena, "✅ Type <color=#00FF00>/arena vote yes</color> to vote YES");
+            BroadcastToArena(arena, "❌ Type <color=#FF0000>/arena vote no</color> to vote NO");
+            BroadcastToArena(arena, "");
+            BroadcastToArena(arena, "⏱️ Vote ends in 60 seconds");
+            BroadcastToArena(arena, "Need >50% YES votes to stop");
+            BroadcastToArena(arena, "═══════════════════════════════════");
+            
+            // Set timeout
+            vote.VoteTimer = timer.Once(60f, () =>
+            {
+                if (activeVotes.ContainsKey(arena.ArenaId))
+                {
+                    ProcessVoteResult(arena.ArenaId);
+                }
+            });
+        }
+        
+        private void VoteYes(BasePlayer player)
+        {
+            CastVote(player, true);
+        }
+        
+        private void VoteNo(BasePlayer player)
+        {
+            CastVote(player, false);
+        }
+        
+        private void CastVote(BasePlayer player, bool vote)
+        {
+            // Check if player is in an arena
+            if (!playerArenaMap.ContainsKey(player.userID))
+            {
+                player.ChatMessage("You must be in an arena to vote.");
+                return;
+            }
+            
+            var arena = playerArenaMap[player.userID];
+            
+            // Check if there's an active vote
+            if (!activeVotes.ContainsKey(arena.ArenaId))
+            {
+                player.ChatMessage("There's no active vote in this arena.");
+                return;
+            }
+            
+            var voteInfo = activeVotes[arena.ArenaId];
+            
+            // Record vote
+            voteInfo.Votes[player.userID] = vote;
+            
+            string voteStr = vote ? "<color=#00FF00>YES</color>" : "<color=#FF0000>NO</color>";
+            player.ChatMessage($"✅ Your vote: {voteStr}");
+            
+            // Show current tally
+            int totalPlayers = arena.GetTotalPlayers();
+            int yesVotes = voteInfo.GetYesVotes();
+            int noVotes = voteInfo.GetNoVotes();
+            int totalVotes = voteInfo.GetTotalVotes();
+            
+            player.ChatMessage($"Current: {yesVotes} YES, {noVotes} NO ({totalVotes}/{totalPlayers} voted)");
+            
+            // Check if all players have voted
+            if (totalVotes >= totalPlayers)
+            {
+                // Cancel timer and process immediately
+                if (voteInfo.VoteTimer != null)
+                {
+                    voteInfo.VoteTimer.Destroy();
+                }
+                ProcessVoteResult(arena.ArenaId);
+            }
+        }
+        
+        private void ProcessVoteResult(int arenaId)
+        {
+            if (!activeVotes.ContainsKey(arenaId))
+                return;
+            
+            var vote = activeVotes[arenaId];
+            var arena = arenaInstances[arenaId];
+            
+            int totalPlayers = arena.GetTotalPlayers();
+            int yesVotes = vote.GetYesVotes();
+            int noVotes = vote.GetNoVotes();
+            float yesPercent = totalPlayers > 0 ? (float)yesVotes / totalPlayers * 100f : 0f;
+            
+            bool passed = yesPercent > 50f;
+            
+            // Broadcast results
+            BroadcastToArena(arena, "═══════════════════════════════════");
+            BroadcastToArena(arena, "🗳️ <color=#FFFF00>VOTE RESULTS</color>");
+            BroadcastToArena(arena, "═══════════════════════════════════");
+            BroadcastToArena(arena, $"YES: <color=#00FF00>{yesVotes}</color> | NO: <color=#FF0000>{noVotes}</color>");
+            BroadcastToArena(arena, $"Percentage: <color=#00FFFF>{yesPercent:F1}%</color>");
+            BroadcastToArena(arena, "");
+            
+            if (passed)
+            {
+                BroadcastToArena(arena, "✅ <color=#00FF00>VOTE PASSED!</color>");
+                BroadcastToArena(arena, "");
+                
+                // Execute action
+                if (vote.Action == "start")
+                {
+                    BroadcastToArena(arena, "🎮 Starting match...");
+                    arena.StartMatch();
+                }
+                else if (vote.Action == "stop")
+                {
+                    BroadcastToArena(arena, "🛑 Stopping match...");
+                    arena.EndMatch();
+                }
+            }
+            else
+            {
+                BroadcastToArena(arena, "❌ <color=#FF0000>VOTE FAILED</color>");
+                BroadcastToArena(arena, "Need >50% YES votes to pass");
+            }
+            
+            BroadcastToArena(arena, "═══════════════════════════════════");
+            
+            // Clean up
+            activeVotes.Remove(arenaId);
+        }
+        
+        private void BroadcastToArena(ArenaInstance arena, string message)
+        {
+            // Send to all teams
+            foreach (var team in arena.Teams.Values)
+            {
+                foreach (var playerId in team)
+                {
+                    var player = BasePlayer.FindByID(playerId);
+                    if (player != null && player.IsConnected)
+                    {
+                        player.ChatMessage(message);
+                    }
+                }
+            }
+            
+            // Send to spectators
+            foreach (var playerId in arena.Spectators)
+            {
+                var player = BasePlayer.FindByID(playerId);
+                if (player != null && player.IsConnected)
+                {
+                    player.ChatMessage(message);
+                }
+            }
         }
 
         #endregion
